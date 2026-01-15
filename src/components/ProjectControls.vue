@@ -89,7 +89,7 @@
 
       <!-- Queue Tab -->
       <div v-else-if="activeTab === 'queue'" class="space-y-4">
-        <div class="flex gap-2">
+        <div class="flex gap-2 flex-wrap">
           <button @click="startQueue" class="btn btn-success" :disabled="runningCommand">
             <PlayIcon class="w-4 h-4" />
             Start Worker
@@ -98,11 +98,86 @@
             <StopIcon class="w-4 h-4" />
             Stop Worker
           </button>
-          <button @click="retryFailed" class="btn btn-secondary" :disabled="runningCommand">
+          <button @click="restartQueue" class="btn btn-secondary" :disabled="runningCommand">
             <ArrowPathIcon class="w-4 h-4" />
-            Retry Failed
+            Restart Worker
           </button>
         </div>
+        
+        <!-- Failed Jobs Section -->
+        <div class="border-t border-dark-700 pt-4">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-medium text-dark-200">Failed Jobs</h4>
+            <div class="flex gap-2">
+              <button @click="loadFailedJobs" class="btn btn-sm btn-secondary" :disabled="runningCommand">
+                <ArrowPathIcon class="w-4 h-4" />
+                Refresh
+              </button>
+              <button @click="retryAllFailed" class="btn btn-sm btn-primary" :disabled="runningCommand">
+                Retry All
+              </button>
+              <button @click="clearAllFailed" class="btn btn-sm btn-danger" :disabled="runningCommand">
+                Clear All
+              </button>
+            </div>
+          </div>
+          
+          <div v-if="failedJobs.length > 0" class="space-y-2 max-h-64 overflow-auto">
+            <div 
+              v-for="job in failedJobs" 
+              :key="job.id"
+              class="flex items-center justify-between p-3 bg-dark-700 rounded-lg"
+            >
+              <div class="flex-1">
+                <div class="font-mono text-sm text-dark-200">{{ job.payload?.displayName || job.id }}</div>
+                <div class="text-xs text-dark-400">Failed at: {{ job.failed_at }}</div>
+              </div>
+              <button @click="retryJob(job.id)" class="btn btn-xs btn-primary">
+                Retry
+              </button>
+            </div>
+          </div>
+          <div v-else class="text-center py-4 text-dark-400">
+            No failed jobs
+          </div>
+        </div>
+        
+        <div v-if="commandOutput" class="terminal max-h-64">
+          <pre>{{ commandOutput }}</pre>
+        </div>
+      </div>
+
+      <!-- Scheduler Tab -->
+      <div v-else-if="activeTab === 'scheduler'" class="space-y-4">
+        <div class="flex gap-2 flex-wrap">
+          <button @click="loadScheduledTasks" class="btn btn-secondary" :disabled="runningCommand">
+            <ArrowPathIcon class="w-4 h-4" />
+            Refresh Tasks
+          </button>
+          <button @click="runSchedulerNow" class="btn btn-primary" :disabled="runningCommand">
+            <PlayIcon class="w-4 h-4" />
+            Run Scheduler Now
+          </button>
+          <button @click="startSchedulerProcess" class="btn btn-success" :disabled="runningCommand">
+            <PlayIcon class="w-4 h-4" />
+            Start Scheduler
+          </button>
+          <button @click="stopSchedulerProcess" class="btn btn-warning" :disabled="runningCommand">
+            <StopIcon class="w-4 h-4" />
+            Stop Scheduler
+          </button>
+        </div>
+        
+        <div class="border-t border-dark-700 pt-4">
+          <h4 class="font-medium text-dark-200 mb-3">Scheduled Tasks</h4>
+          <div v-if="scheduledTasks" class="terminal max-h-96 overflow-auto">
+            <pre>{{ scheduledTasks }}</pre>
+          </div>
+          <div v-else class="text-center py-4 text-dark-400">
+            Click "Refresh Tasks" to load scheduled tasks
+          </div>
+        </div>
+        
         <div v-if="commandOutput" class="terminal max-h-64">
           <pre>{{ commandOutput }}</pre>
         </div>
@@ -242,6 +317,9 @@ const logs = ref('')
 const loadingLogs = ref(false)
 const selectedLogService = ref('app')
 
+const failedJobs = ref<any[]>([])
+const scheduledTasks = ref('')
+
 const supervisorStatus = ref<SupervisorStatus>({
   total_programs: 0,
   running: 0,
@@ -254,6 +332,7 @@ const tabs = [
   { id: 'services', name: 'Services' },
   { id: 'artisan', name: 'Artisan' },
   { id: 'queue', name: 'Queue' },
+  { id: 'scheduler', name: 'Scheduler' },
   { id: 'supervisor', name: 'Supervisor' },
   { id: 'cache', name: 'Cache' },
   { id: 'database', name: 'Database' },
@@ -338,10 +417,109 @@ async function stopQueue() {
   }
 }
 
-async function retryFailed() {
+async function restartQueue() {
   runningCommand.value = true
   try {
-    commandOutput.value = await api.runArtisanCommand(props.project.id, 'queue:retry all')
+    commandOutput.value = await api.restartQueueWorker(props.project.id)
+  } catch (e) {
+    commandOutput.value = `Error: ${e}`
+  } finally {
+    runningCommand.value = false
+  }
+}
+
+async function loadFailedJobs() {
+  runningCommand.value = true
+  try {
+    const result = await api.getFailedJobs(props.project.id)
+    try {
+      failedJobs.value = JSON.parse(result) || []
+    } catch {
+      failedJobs.value = []
+      commandOutput.value = result
+    }
+  } catch (e) {
+    commandOutput.value = `Error: ${e}`
+    failedJobs.value = []
+  } finally {
+    runningCommand.value = false
+  }
+}
+
+async function retryJob(jobId: string) {
+  runningCommand.value = true
+  try {
+    commandOutput.value = await api.retryFailedJob(props.project.id, jobId)
+    await loadFailedJobs()
+  } catch (e) {
+    commandOutput.value = `Error: ${e}`
+  } finally {
+    runningCommand.value = false
+  }
+}
+
+async function retryAllFailed() {
+  runningCommand.value = true
+  try {
+    commandOutput.value = await api.retryAllFailedJobs(props.project.id)
+    await loadFailedJobs()
+  } catch (e) {
+    commandOutput.value = `Error: ${e}`
+  } finally {
+    runningCommand.value = false
+  }
+}
+
+async function clearAllFailed() {
+  runningCommand.value = true
+  try {
+    commandOutput.value = await api.clearFailedJobs(props.project.id)
+    failedJobs.value = []
+  } catch (e) {
+    commandOutput.value = `Error: ${e}`
+  } finally {
+    runningCommand.value = false
+  }
+}
+
+// Scheduler functions
+async function loadScheduledTasks() {
+  runningCommand.value = true
+  try {
+    scheduledTasks.value = await api.getScheduledTasks(props.project.id)
+  } catch (e) {
+    commandOutput.value = `Error: ${e}`
+  } finally {
+    runningCommand.value = false
+  }
+}
+
+async function runSchedulerNow() {
+  runningCommand.value = true
+  try {
+    commandOutput.value = await api.runScheduler(props.project.id)
+  } catch (e) {
+    commandOutput.value = `Error: ${e}`
+  } finally {
+    runningCommand.value = false
+  }
+}
+
+async function startSchedulerProcess() {
+  runningCommand.value = true
+  try {
+    commandOutput.value = await api.startScheduler(props.project.id)
+  } catch (e) {
+    commandOutput.value = `Error: ${e}`
+  } finally {
+    runningCommand.value = false
+  }
+}
+
+async function stopSchedulerProcess() {
+  runningCommand.value = true
+  try {
+    commandOutput.value = await api.stopScheduler(props.project.id)
   } catch (e) {
     commandOutput.value = `Error: ${e}`
   } finally {

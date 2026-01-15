@@ -111,8 +111,62 @@ export const api = {
     return await invoke('stop_queue_worker', { projectId })
   },
 
+  async restartQueueWorker(projectId: string): Promise<string> {
+    return await invoke('restart_queue_worker', { projectId })
+  },
+
   async getQueueStatus(projectId: string): Promise<string> {
     return await invoke('get_queue_status', { projectId })
+  },
+
+  async getFailedJobs(projectId: string): Promise<string> {
+    return await invoke('get_failed_jobs', { projectId })
+  },
+
+  async retryFailedJob(projectId: string, jobId: string): Promise<string> {
+    return await invoke('retry_failed_job', { projectId, jobId })
+  },
+
+  async retryAllFailedJobs(projectId: string): Promise<string> {
+    return await invoke('retry_all_failed_jobs', { projectId })
+  },
+
+  async clearFailedJobs(projectId: string): Promise<string> {
+    return await invoke('clear_failed_jobs', { projectId })
+  },
+
+  // Scheduler
+  async getScheduledTasks(projectId: string): Promise<string> {
+    return await invoke('get_scheduled_tasks', { projectId })
+  },
+
+  async runScheduler(projectId: string): Promise<string> {
+    return await invoke('run_scheduler', { projectId })
+  },
+
+  async runScheduledTask(projectId: string, command: string): Promise<string> {
+    return await invoke('run_scheduled_task', { projectId, command })
+  },
+
+  async getSchedulerStatus(projectId: string): Promise<string> {
+    return await invoke('get_scheduler_status', { projectId })
+  },
+
+  async startScheduler(projectId: string): Promise<string> {
+    return await invoke('start_scheduler', { projectId })
+  },
+
+  async stopScheduler(projectId: string): Promise<string> {
+    return await invoke('stop_scheduler', { projectId })
+  },
+
+  // Project Cloning
+  async cloneProject(projectId: string, newName: string): Promise<Project> {
+    return await invoke('clone_project', { projectId, newName })
+  },
+
+  async importProject(sourcePath: string, name: string): Promise<Project> {
+    return await invoke('import_project', { sourcePath, name })
   },
 
   // Cache

@@ -453,4 +453,66 @@ impl DockerManager {
     pub fn restart_supervisor(project_path: &str) -> Result<String, String> {
         Self::exec_in_container(project_path, "app", "supervisorctl restart all")
     }
+
+    // ============ Queue Management ============
+
+    pub fn start_queue_worker(project_path: &str) -> Result<String, String> {
+        Self::exec_in_container(project_path, "app", "supervisorctl start laravel-worker:*")
+    }
+
+    pub fn stop_queue_worker(project_path: &str) -> Result<String, String> {
+        Self::exec_in_container(project_path, "app", "supervisorctl stop laravel-worker:*")
+    }
+
+    pub fn restart_queue_worker(project_path: &str) -> Result<String, String> {
+        Self::exec_in_container(project_path, "app", "php artisan queue:restart")
+    }
+
+    pub fn get_failed_jobs(project_path: &str) -> Result<String, String> {
+        Self::run_artisan(project_path, "queue:failed --json")
+    }
+
+    pub fn retry_failed_job(project_path: &str, job_id: &str) -> Result<String, String> {
+        Self::run_artisan(project_path, &format!("queue:retry {}", job_id))
+    }
+
+    pub fn retry_all_failed_jobs(project_path: &str) -> Result<String, String> {
+        Self::run_artisan(project_path, "queue:retry all")
+    }
+
+    pub fn clear_failed_jobs(project_path: &str) -> Result<String, String> {
+        Self::run_artisan(project_path, "queue:flush")
+    }
+
+    pub fn get_queue_size(project_path: &str, queue: &str) -> Result<String, String> {
+        Self::run_artisan(project_path, &format!("queue:monitor {} --json", queue))
+    }
+
+    // ============ Scheduler Management ============
+
+    pub fn get_scheduled_tasks(project_path: &str) -> Result<String, String> {
+        Self::run_artisan(project_path, "schedule:list")
+    }
+
+    pub fn run_scheduler(project_path: &str) -> Result<String, String> {
+        Self::run_artisan(project_path, "schedule:run")
+    }
+
+    pub fn run_scheduled_task(project_path: &str, command: &str) -> Result<String, String> {
+        // Run a specific artisan command that's in the scheduler
+        Self::run_artisan(project_path, command)
+    }
+
+    pub fn get_scheduler_status(project_path: &str) -> Result<String, String> {
+        // Check if scheduler is running via supervisor
+        Self::exec_in_container(project_path, "app", "supervisorctl status laravel-scheduler 2>/dev/null || echo 'not_configured'")
+    }
+
+    pub fn start_scheduler(project_path: &str) -> Result<String, String> {
+        Self::exec_in_container(project_path, "app", "supervisorctl start laravel-scheduler")
+    }
+
+    pub fn stop_scheduler(project_path: &str) -> Result<String, String> {
+        Self::exec_in_container(project_path, "app", "supervisorctl stop laravel-scheduler")
+    }
 }

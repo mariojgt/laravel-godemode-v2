@@ -378,26 +378,6 @@ pub fn run_make_command(project_id: String, target: String) -> Result<String, St
     DockerManager::run_make(&project.path, &target)
 }
 
-// ============ Queue Commands ============
-
-#[tauri::command]
-pub fn start_queue_worker(project_id: String) -> Result<String, String> {
-    let project = ProjectManager::get_project(&project_id)?;
-    DockerManager::exec_in_container(&project.path, "app", "supervisorctl start laravel-queue")
-}
-
-#[tauri::command]
-pub fn stop_queue_worker(project_id: String) -> Result<String, String> {
-    let project = ProjectManager::get_project(&project_id)?;
-    DockerManager::exec_in_container(&project.path, "app", "supervisorctl stop laravel-queue")
-}
-
-#[tauri::command]
-pub fn get_queue_status(project_id: String) -> Result<String, String> {
-    let project = ProjectManager::get_project(&project_id)?;
-    DockerManager::run_artisan(&project.path, "queue:monitor")
-}
-
 // ============ Cache Commands ============
 
 #[tauri::command]
@@ -504,6 +484,106 @@ pub fn check_docker_installed() -> bool {
 #[tauri::command]
 pub fn get_docker_version() -> Result<String, String> {
     DockerManager::get_docker_version()
+}
+
+// ============ Queue Management Commands ============
+
+#[tauri::command]
+pub fn start_queue_worker(project_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::start_queue_worker(&project.path)
+}
+
+#[tauri::command]
+pub fn stop_queue_worker(project_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::stop_queue_worker(&project.path)
+}
+
+#[tauri::command]
+pub fn restart_queue_worker(project_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::restart_queue_worker(&project.path)
+}
+
+#[tauri::command]
+pub fn get_queue_status(project_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::run_artisan(&project.path, "queue:monitor")
+}
+
+#[tauri::command]
+pub fn get_failed_jobs(project_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::get_failed_jobs(&project.path)
+}
+
+#[tauri::command]
+pub fn retry_failed_job(project_id: String, job_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::retry_failed_job(&project.path, &job_id)
+}
+
+#[tauri::command]
+pub fn retry_all_failed_jobs(project_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::retry_all_failed_jobs(&project.path)
+}
+
+#[tauri::command]
+pub fn clear_failed_jobs(project_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::clear_failed_jobs(&project.path)
+}
+
+// ============ Scheduler Commands ============
+
+#[tauri::command]
+pub fn get_scheduled_tasks(project_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::get_scheduled_tasks(&project.path)
+}
+
+#[tauri::command]
+pub fn run_scheduler(project_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::run_scheduler(&project.path)
+}
+
+#[tauri::command]
+pub fn run_scheduled_task(project_id: String, command: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::run_scheduled_task(&project.path, &command)
+}
+
+#[tauri::command]
+pub fn get_scheduler_status(project_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::get_scheduler_status(&project.path)
+}
+
+#[tauri::command]
+pub fn start_scheduler(project_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::start_scheduler(&project.path)
+}
+
+#[tauri::command]
+pub fn stop_scheduler(project_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::stop_scheduler(&project.path)
+}
+
+// ============ Project Cloning Commands ============
+
+#[tauri::command]
+pub fn clone_project(project_id: String, new_name: String) -> Result<Project, String> {
+    ProjectManager::clone_project(&project_id, &new_name)
+}
+
+#[tauri::command]
+pub fn import_project(source_path: String, name: String) -> Result<Project, String> {
+    ProjectManager::import_project(&source_path, &name)
 }
 
 // ============ Helper Functions ============

@@ -3,10 +3,15 @@
     <!-- Header -->
     <div class="flex items-center justify-between p-6 border-b border-dark-700 shrink-0">
       <h1 class="text-2xl font-bold text-dark-100">Project Dashboard</h1>
-      <button @click="showCreateModal = true" class="btn btn-primary">
-        <PlusIcon class="w-5 h-5" />
-        Create Project
-      </button>
+      <div class="flex gap-2">
+        <button @click="showImportModal = true" class="btn btn-secondary">
+          📥 Import Project
+        </button>
+        <button @click="showCreateModal = true" class="btn btn-primary">
+          <PlusIcon class="w-5 h-5" />
+          Create Project
+        </button>
+      </div>
     </div>
 
     <!-- Content -->
@@ -138,6 +143,13 @@
             </button>
 
             <button
+              @click.stop="openCloneModal(project)"
+              class="btn btn-secondary btn-sm"
+            >
+              📋 Clone
+            </button>
+
+            <button
               @click.stop="confirmDelete(project)"
               class="btn btn-danger btn-sm"
             >
@@ -182,6 +194,21 @@
       @saved="envProject = null"
     />
 
+    <!-- Clone Project Modal -->
+    <CloneProjectModal
+      v-if="cloneProject"
+      :project="cloneProject"
+      @close="cloneProject = null"
+      @cloned="onProjectCloned"
+    />
+
+    <!-- Import Project Modal -->
+    <ImportProjectModal
+      v-if="showImportModal"
+      @close="showImportModal = false"
+      @imported="onProjectImported"
+    />
+
     <!-- Terminal Panel -->
     <TerminalPanel 
       :logs="terminalLogs"
@@ -202,6 +229,8 @@ import ProjectControls from '@/components/ProjectControls.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import TerminalPanel from '@/components/TerminalPanel.vue'
 import EnvEditorModal from '@/components/EnvEditorModal.vue'
+import CloneProjectModal from '@/components/CloneProjectModal.vue'
+import ImportProjectModal from '@/components/ImportProjectModal.vue'
 import type { TerminalLog } from '@/components/TerminalPanel.vue'
 import {
   PlusIcon,
@@ -222,8 +251,10 @@ interface DockerOutputEvent {
 const store = useProjectsStore()
 const settingsStore = useSettingsStore()
 const showCreateModal = ref(false)
+const showImportModal = ref(false)
 const projectToDelete = ref<Project | null>(null)
 const envProject = ref<Project | null>(null)
+const cloneProject = ref<Project | null>(null)
 const actionLoading = reactive<Record<string, boolean>>({})
 const terminalLogs = ref<TerminalLog[]>([])
 let unlistenDockerOutput: UnlistenFn | null = null
@@ -375,8 +406,22 @@ function openEnvModal(project: Project) {
   envProject.value = project
 }
 
+function openCloneModal(project: Project) {
+  cloneProject.value = project
+}
+
 function onProjectCreated() {
   showCreateModal.value = false
+  store.fetchProjects()
+}
+
+function onProjectCloned(_project: Project) {
+  cloneProject.value = null
+  store.fetchProjects()
+}
+
+function onProjectImported(_project: Project) {
+  showImportModal.value = false
   store.fetchProjects()
 }
 

@@ -49,7 +49,12 @@ fn main() {
             // Queue commands
             commands::start_queue_worker,
             commands::stop_queue_worker,
+            commands::restart_queue_worker,
             commands::get_queue_status,
+            commands::get_failed_jobs,
+            commands::retry_failed_job,
+            commands::retry_all_failed_jobs,
+            commands::clear_failed_jobs,
             // Cache commands
             commands::clear_cache,
             commands::optimize_app,
@@ -61,6 +66,16 @@ fn main() {
             commands::get_supervisor_status,
             commands::reload_supervisor,
             commands::restart_supervisor,
+            // Scheduler commands
+            commands::get_scheduled_tasks,
+            commands::run_scheduler,
+            commands::run_scheduled_task,
+            commands::get_scheduler_status,
+            commands::start_scheduler,
+            commands::stop_scheduler,
+            // Project cloning commands
+            commands::clone_project,
+            commands::import_project,
             // Settings commands
             commands::get_settings,
             commands::save_settings,
