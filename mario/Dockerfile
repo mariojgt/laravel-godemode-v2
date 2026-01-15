@@ -1,0 +1,126 @@
+# Use ServersideUp Laravel-optimized image with all extensions pre-installed
+FROM serversideup/php:8.4-fpm
+
+# Ensure root for package installs (some images default to non-root)
+USER root
+
+# Install additional tools only if needed
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    supervisor \
+    mariadb-client \
+    nodejs \
+    npm \
+    curl \
+    ca-certificates \
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libpng-dev \
+    libwebp-dev \
+    libxpm-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp --with-xpm \
+    && docker-php-ext-install -j$(nproc) gd \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+
+# Install Composer and optional package managers
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+RUN if [ "true" = "true" ]; then \
+            curl -fsSL https://bun.sh/install | bash && ln -sf /root/.bun/bin/bun /usr/local/bin/bun; \
+        fi \
+        && if [ "false" = "true" ]; then npm install -g pnpm; fi
+
+# Create application user (ServersideUp images use www-data by default)
+# Skip user creation as the image already has proper user setup
+
+# Set working directory
+WORKDIR /var/www/html
+
+# Create supervisor log directory
+RUN mkdir -p /var/log/supervisor
+
+# Create PHP-FPM configuration to ensure it listens on 9000
+RUN echo '[global]' > /usr/local/etc/php-fpm.conf && \
+    echo 'error_log = /var/log/php-fpm.log' >> /usr/local/etc/php-fpm.conf && \
+    echo 'daemonize = no' >> /usr/local/etc/php-fpm.conf && \
+    echo '' >> /usr/local/etc/php-fpm.conf && \
+    echo '[www]' >> /usr/local/etc/php-fpm.conf && \
+    echo 'user = www-data' >> /usr/local/etc/php-fpm.conf && \
+    echo 'group = www-data' >> /usr/local/etc/php-fpm.conf && \
+    echo 'listen = 9000' >> /usr/local/etc/php-fpm.conf && \
+    echo 'pm = dynamic' >> /usr/local/etc/php-fpm.conf && \
+    echo 'pm.max_children = 20' >> /usr/local/etc/php-fpm.conf && \
+    echo 'pm.start_servers = 2' >> /usr/local/etc/php-fpm.conf && \
+    echo 'pm.min_spare_servers = 1' >> /usr/local/etc/php-fpm.conf && \
+    echo 'pm.max_spare_servers = 3' >> /usr/local/etc/php-fpm.conf && \
+    echo 'pm.process_idle_timeout = 10s' >> /usr/local/etc/php-fpm.conf && \
+    echo 'pm.max_requests = 500' >> /usr/local/etc/php-fpm.conf && \
+    echo 'pm.status_path = /fpm-status' >> /usr/local/etc/php-fpm.conf && \
+    echo 'ping.path = /fpm-ping' >> /usr/local/etc/php-fpm.conf && \
+    echo 'access.log = /var/log/php-fpm.access.log' >> /usr/local/etc/php-fpm.conf && \
+    echo 'catch_workers_output = yes' >> /usr/local/etc/php-fpm.conf && \
+    echo 'decorate_workers_output = no' >> /usr/local/etc/php-fpm.conf
+
+# Copy supervisor configuration
+COPY docker/supervisor.conf /etc/supervisor/conf.d/laravel.conf
+
+# Copy composer files first for better caching
+# COPY src/composer.json src/composer.lock* ./
+
+# Install Composer dependencies (this layer gets cached unless dependencies change)
+# RUN if [ -f composer.json ]; then \
+#     composer install --no-dev --optimize-autoloader --no-interaction --no-scripts; \
+#     fi
+
+# Copy package.json files for Node dependencies caching
+# COPY src/package*.json src/bun.lock* src/pnpm-lock.yaml* ./
+
+# Install Node dependencies if package.json exists (cached layer)
+# RUN if [ -f package.json ]; then \
+#     npm ci --no-audit --no-fund 2>/dev/null || npm install --no-audit --no-fund; \
+#     fi
+
+# Now copy the rest of the application files (benefits from above caches)
+COPY src/ /var/www/html/
+
+# Set permissions (use www-data user from ServersideUp image)
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html/storage \
+    && chmod -R 755 /var/www/html/bootstrap/cache
+
+# Re-run composer install to ensure any new files are handled (mostly cache hit)
+RUN if [ -f composer.json ]; then \
+    composer install --no-dev --optimize-autoloader --no-interaction --no-scripts; \
+    fi
+
+# Generate Laravel application key if artisan exists and no key is set (skip if no DB available)
+RUN if [ -f artisan ] && ! grep -q "^APP_KEY=.*[^=]" .env 2>/dev/null; then \
+    php artisan key:generate --no-interaction --force || true; \
+    fi
+
+# Create supervisord main config
+RUN echo '[unix_http_server]' > /etc/supervisord.conf && \
+    echo 'file=/var/run/supervisor.sock' >> /etc/supervisord.conf && \
+    echo 'chmod=0700' >> /etc/supervisord.conf && \
+    echo '' >> /etc/supervisord.conf && \
+    echo '[supervisord]' >> /etc/supervisord.conf && \
+    echo 'logfile=/var/log/supervisor/supervisord.log' >> /etc/supervisord.conf && \
+    echo 'pidfile=/var/run/supervisord.pid' >> /etc/supervisord.conf && \
+    echo 'childlogdir=/var/log/supervisor' >> /etc/supervisord.conf && \
+    echo 'nodaemon=true' >> /etc/supervisord.conf && \
+    echo 'user=root' >> /etc/supervisord.conf && \
+    echo 'silent=false' >> /etc/supervisord.conf && \
+    echo 'loglevel=info' >> /etc/supervisord.conf && \
+    echo '' >> /etc/supervisord.conf && \
+    echo '[rpcinterface:supervisor]' >> /etc/supervisord.conf && \
+    echo 'supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface' >> /etc/supervisord.conf && \
+    echo '' >> /etc/supervisord.conf && \
+    echo '[supervisorctl]' >> /etc/supervisord.conf && \
+    echo 'serverurl=unix:///var/run/supervisor.sock' >> /etc/supervisord.conf && \
+    echo '' >> /etc/supervisord.conf && \
+    echo '[include]' >> /etc/supervisord.conf && \
+    echo 'files = /etc/supervisor/conf.d/*.conf' >> /etc/supervisord.conf
+
+# Expose port
+EXPOSE 9000
+
+# Start supervisor
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]

@@ -1,0 +1,14 @@
+-- MySQL Initialization Script for Laravel Docker
+-- This script runs only on first database initialization
+
+-- Allow root from any host (for phpMyAdmin and external tools)
+CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY 'password';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+
+-- Allow laravel user from any host (for application)
+CREATE USER IF NOT EXISTS 'laravel'@'%' IDENTIFIED BY 'password';
+GRANT ALL PRIVILEGES ON *.* TO 'laravel'@'%' WITH GRANT OPTION;
+GRANT ALL PRIVILEGES ON {{PROJECT_NAME}}.* TO 'laravel'@'%';
+
+-- Apply changes
+FLUSH PRIVILEGES;
