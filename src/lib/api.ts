@@ -22,6 +22,10 @@ export const api = {
     return await invoke('get_project', { projectId })
   },
 
+  async getProjectEnv(projectId: string): Promise<string> {
+    return await invoke('get_project_env', { projectId })
+  },
+
   async updateProjectEnv(projectId: string, envContent: string): Promise<void> {
     return await invoke('update_project_env', { projectId, envContent })
   },

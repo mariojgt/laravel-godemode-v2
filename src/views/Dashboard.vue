@@ -173,6 +173,15 @@
       @cancel="projectToDelete = null"
     />
 
+    <!-- Env Editor Modal -->
+    <EnvEditorModal
+      v-if="envProject"
+      :project-id="envProject.id"
+      :project-name="envProject.name"
+      @close="envProject = null"
+      @saved="envProject = null"
+    />
+
     <!-- Terminal Panel -->
     <TerminalPanel 
       :logs="terminalLogs"
@@ -192,6 +201,7 @@ import CreateProjectModal from '@/components/CreateProjectModal.vue'
 import ProjectControls from '@/components/ProjectControls.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import TerminalPanel from '@/components/TerminalPanel.vue'
+import EnvEditorModal from '@/components/EnvEditorModal.vue'
 import type { TerminalLog } from '@/components/TerminalPanel.vue'
 import {
   PlusIcon,
@@ -213,6 +223,7 @@ const store = useProjectsStore()
 const settingsStore = useSettingsStore()
 const showCreateModal = ref(false)
 const projectToDelete = ref<Project | null>(null)
+const envProject = ref<Project | null>(null)
 const actionLoading = reactive<Record<string, boolean>>({})
 const terminalLogs = ref<TerminalLog[]>([])
 let unlistenDockerOutput: UnlistenFn | null = null
@@ -361,8 +372,7 @@ async function openInEditor(projectId: string) {
 }
 
 function openEnvModal(project: Project) {
-  // TODO: Implement env editor modal
-  console.log('Edit env for:', project.name)
+  envProject.value = project
 }
 
 function onProjectCreated() {

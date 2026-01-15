@@ -71,6 +71,12 @@ pub fn get_project(project_id: String) -> Result<Project, String> {
 }
 
 #[tauri::command]
+pub fn get_project_env(project_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    ProjectManager::get_env_file(&project.path)
+}
+
+#[tauri::command]
 pub fn update_project_env(project_id: String, env_content: String) -> Result<(), String> {
     let project = ProjectManager::get_project(&project_id)?;
     ProjectManager::update_env_file(&project.path, &env_content)

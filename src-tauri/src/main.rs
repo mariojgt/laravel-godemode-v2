@@ -24,6 +24,7 @@ fn main() {
             commands::create_project,
             commands::delete_project,
             commands::get_project,
+            commands::get_project_env,
             commands::update_project_env,
             commands::open_project_folder,
             commands::open_project_in_editor,
