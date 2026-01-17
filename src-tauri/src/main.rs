@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod custom_template;
 mod docker;
 mod project;
 mod template;
@@ -87,6 +88,8 @@ fn main() {
             commands::run_tinker_command,
             commands::run_composer_command,
             commands::run_npm_command,
+            // Custom template commands
+            commands::create_project_from_custom_template,
             // Settings commands
             commands::get_settings,
             commands::save_settings,

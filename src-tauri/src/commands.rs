@@ -37,10 +37,10 @@ pub fn get_projects() -> Result<Vec<Project>, String> {
 pub fn create_project(request: CreateProjectRequest) -> Result<Project, String> {
     println!("[GodMode] Creating project: {}", request.name);
     println!("[GodMode] Template: {}", request.template);
-    
+
     let projects_dir = ProjectManager::ensure_projects_dir()?;
     println!("[GodMode] Projects dir: {}", projects_dir);
-    
+
     let templates_path = get_templates_path();
     println!("[GodMode] Templates path: {}", templates_path);
 
@@ -51,12 +51,12 @@ pub fn create_project(request: CreateProjectRequest) -> Result<Project, String> 
         &templates_path,
         request.config,
     )?;
-    
+
     println!("[GodMode] Project created at: {}", project.path);
 
     save_project(&project)?;
     println!("[GodMode] Project saved!");
-    
+
     Ok(project)
 }
 
@@ -208,18 +208,18 @@ pub async fn start_project_streaming(app: tauri::AppHandle, project_id: String) 
 
     if result.is_ok() {
         ProjectManager::update_project_status(&project_id, ProjectStatus::Running)?;
-        
+
         // If install_laravel is enabled, check if src folder is empty and install Laravel
         if install_laravel {
             let src_path = std::path::Path::new(&project.path).join("src");
             let is_empty = src_path.read_dir().map(|mut d| d.next().is_none()).unwrap_or(true);
-            
+
             if is_empty {
                 let app_clone2 = app.clone();
                 let project_id_clone2 = project_id.clone();
                 let project_path2 = project.path.clone();
                 let project_name2 = project_name.clone();
-                
+
                 // Run Laravel installation in background
                 tokio::task::spawn_blocking(move || {
                     DockerManager::install_laravel_streaming(&app_clone2, &project_id_clone2, &project_path2, &project_name2)
@@ -420,12 +420,12 @@ pub fn run_seeders(project_id: String) -> Result<String, String> {
 #[tauri::command]
 pub fn fresh_database(project_id: String, create_backup: bool) -> Result<String, String> {
     let project = ProjectManager::get_project(&project_id)?;
-    
+
     // Auto-backup before destructive operation if requested
     if create_backup {
         let _ = DockerManager::backup_database(&project.path, &project.name);
     }
-    
+
     DockerManager::run_artisan(&project.path, "migrate:fresh --seed --force")
 }
 
@@ -629,11 +629,11 @@ pub struct BackupInfo {
 pub fn get_backups_with_info(project_id: String) -> Result<Vec<BackupInfo>, String> {
     let project = ProjectManager::get_project(&project_id)?;
     let backups = DockerManager::list_backups(&project.path)?;
-    
+
     let mut backup_infos = Vec::new();
     for backup in backups {
         let size = DockerManager::get_backup_size(&project.path, &backup).unwrap_or(0);
-        
+
         // Extract timestamp from filename: backup_YYYYMMDD_HHMMSS.sql
         let created_at = if backup.starts_with("backup_") && backup.len() >= 22 {
             let date_part = &backup[7..15]; // YYYYMMDD
@@ -646,14 +646,14 @@ pub fn get_backups_with_info(project_id: String) -> Result<Vec<BackupInfo>, Stri
         } else {
             "Unknown".to_string()
         };
-        
+
         backup_infos.push(BackupInfo {
             name: backup,
             size,
             created_at,
         });
     }
-    
+
     Ok(backup_infos)
 }
 
@@ -697,7 +697,7 @@ fn get_templates_path() -> String {
             println!("[GodMode] Found templates at: {:?}", dev_path);
             return dev_path.to_string_lossy().to_string();
         }
-        
+
         // Check parent directory (for when running from src-tauri)
         let parent_path = cwd.parent().map(|p| p.join("templates"));
         if let Some(ref path) = parent_path {
@@ -722,4 +722,34 @@ fn get_settings_path() -> String {
         .join("settings.json")
         .to_string_lossy()
         .to_string()
+}
+
+// ============ Custom Template Commands ============
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateFromCustomTemplateRequest {
+    pub name: String,
+    pub template: crate::custom_template::CustomTemplate,
+}
+
+#[tauri::command]
+pub fn create_project_from_custom_template(request: CreateFromCustomTemplateRequest) -> Result<Project, String> {
+    use crate::custom_template::create_project_from_custom_template as create_custom;
+    use crate::project::ProjectManager;
+
+    println!("[GodMode] Creating project from custom template: {}", request.name);
+    println!("[GodMode] Template: {}", request.template.name);
+
+    let projects_dir = ProjectManager::ensure_projects_dir()?;
+
+    let project = create_custom(
+        &request.name,
+        &request.template,
+        &projects_dir,
+    )?;
+
+    // Save to project manager
+    ProjectManager::save_project(&project)?;
+
+    Ok(project)
 }

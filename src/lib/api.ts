@@ -258,5 +258,12 @@ export const api = {
 
   async getDockerVersion(): Promise<string> {
     return await invoke('get_docker_version')
+  },
+
+  // Custom Templates
+  async createProjectFromCustomTemplate(name: string, template: any): Promise<Project> {
+    return await invoke('create_project_from_custom_template', {
+      request: { name, template }
+    })
   }
 }

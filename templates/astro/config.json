@@ -1,0 +1,190 @@
+{
+  "name": "Astro",
+  "description": "The web framework for content-driven websites with islands architecture",
+  "icon": "🚀",
+  "type": "astro",
+  "category": "Frontend Framework",
+
+  "install": {
+    "command": "npm create astro@latest . -- --template minimal --install --no-git",
+    "requirements": ["node"],
+    "checkCommand": "node --version",
+    "timeout": 180000
+  },
+
+  "versions": {
+    "node": {
+      "default": "20",
+      "options": ["22", "20", "18"],
+      "labels": {
+        "22": "Node.js 22 (Latest)",
+        "20": "Node.js 20 LTS (Recommended)",
+        "18": "Node.js 18 LTS"
+      }
+    },
+    "astro": {
+      "default": "4",
+      "options": ["4", "3"],
+      "labels": {
+        "4": "Astro 4.x (Latest)",
+        "3": "Astro 3.x"
+      }
+    }
+  },
+
+  "packageManagers": {
+    "npm": {
+      "required": true,
+      "description": "Node package manager"
+    },
+    "bun": {
+      "required": false,
+      "default": false,
+      "description": "Fast JavaScript runtime & package manager"
+    },
+    "pnpm": {
+      "required": false,
+      "default": true,
+      "description": "Fast, disk space efficient package manager"
+    },
+    "yarn": {
+      "required": false,
+      "default": false,
+      "description": "Yarn package manager"
+    }
+  },
+
+  "services": {
+    "nginx": {
+      "required": true,
+      "description": "Web server for static/SSR",
+      "icon": "🌐"
+    },
+    "postgresql": {
+      "required": false,
+      "default": false,
+      "description": "PostgreSQL database server",
+      "defaultPort": 5432,
+      "icon": "🐘"
+    },
+    "redis": {
+      "required": false,
+      "default": false,
+      "description": "In-memory data structure store",
+      "defaultPort": 6379,
+      "icon": "⚡"
+    },
+    "mailhog": {
+      "required": false,
+      "default": false,
+      "description": "Email testing tool",
+      "defaultPort": 8025,
+      "icon": "📧"
+    }
+  },
+
+  "ports": {
+    "app": {
+      "default": 4321,
+      "description": "Main application port"
+    },
+    "preview": {
+      "default": 4322,
+      "description": "Preview server port"
+    }
+  },
+
+  "options": {
+    "outputMode": {
+      "default": "static",
+      "options": ["static", "server", "hybrid"],
+      "labels": {
+        "static": "Static (Pre-rendered HTML)",
+        "server": "Server (SSR on-demand)",
+        "hybrid": "Hybrid (Mixed rendering)"
+      },
+      "description": "How your site is rendered"
+    },
+    "integrations": {
+      "default": ["tailwind"],
+      "options": ["tailwind", "react", "vue", "svelte", "solidjs", "preact", "alpinejs", "mdx", "sitemap", "partytown"],
+      "labels": {
+        "tailwind": "Tailwind CSS",
+        "react": "React",
+        "vue": "Vue",
+        "svelte": "Svelte",
+        "solidjs": "Solid.js",
+        "preact": "Preact",
+        "alpinejs": "Alpine.js",
+        "mdx": "MDX",
+        "sitemap": "Sitemap",
+        "partytown": "Partytown"
+      },
+      "description": "Astro integrations to include"
+    }
+  },
+
+  "commands": {
+    "install": "npm create astro@latest . -- --template minimal --install --no-git",
+    "setup": [
+      "npx astro add tailwind -y"
+    ],
+    "dev": "npm run dev -- --host 0.0.0.0",
+    "build": "npm run build",
+    "preview": "npm run preview -- --host 0.0.0.0"
+  },
+
+  "stubs": [
+    "docker-compose.yml.stub",
+    "Dockerfile.stub",
+    "nginx.conf.stub",
+    ".env.stub",
+    "Makefile.stub"
+  ],
+
+  "environment": {
+    "NODE_ENV": "development",
+    "HOST": "0.0.0.0",
+    "PORT": "4321"
+  },
+
+  "commonCommands": [
+    {
+      "name": "dev",
+      "command": "npm run dev",
+      "description": "Start development server",
+      "category": "Development"
+    },
+    {
+      "name": "build",
+      "command": "npm run build",
+      "description": "Build for production",
+      "category": "Build"
+    },
+    {
+      "name": "preview",
+      "command": "npm run preview",
+      "description": "Preview production build",
+      "category": "Build"
+    },
+    {
+      "name": "add integration",
+      "command": "npx astro add",
+      "description": "Add an Astro integration",
+      "category": "Setup",
+      "prompt": "Integration name:"
+    },
+    {
+      "name": "check",
+      "command": "npx astro check",
+      "description": "Check for TypeScript errors",
+      "category": "Debug"
+    },
+    {
+      "name": "sync",
+      "command": "npx astro sync",
+      "description": "Generate TypeScript types",
+      "category": "Setup"
+    }
+  ]
+}

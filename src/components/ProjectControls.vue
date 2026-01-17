@@ -103,7 +103,7 @@
             Restart Worker
           </button>
         </div>
-        
+
         <!-- Failed Jobs Section -->
         <div class="border-t border-dark-700 pt-4">
           <div class="flex items-center justify-between mb-3">
@@ -121,10 +121,10 @@
               </button>
             </div>
           </div>
-          
+
           <div v-if="failedJobs.length > 0" class="space-y-2 max-h-64 overflow-auto">
-            <div 
-              v-for="job in failedJobs" 
+            <div
+              v-for="job in failedJobs"
               :key="job.id"
               class="flex items-center justify-between p-3 bg-dark-700 rounded-lg"
             >
@@ -141,7 +141,7 @@
             No failed jobs
           </div>
         </div>
-        
+
         <div v-if="commandOutput" class="terminal max-h-64">
           <pre>{{ commandOutput }}</pre>
         </div>
@@ -167,7 +167,7 @@
             Stop Scheduler
           </button>
         </div>
-        
+
         <div class="border-t border-dark-700 pt-4">
           <h4 class="font-medium text-dark-200 mb-3">Scheduled Tasks</h4>
           <div v-if="scheduledTasks" class="terminal max-h-96 overflow-auto">
@@ -177,7 +177,7 @@
             Click "Refresh Tasks" to load scheduled tasks
           </div>
         </div>
-        
+
         <div v-if="commandOutput" class="terminal max-h-64">
           <pre>{{ commandOutput }}</pre>
         </div>
@@ -285,24 +285,24 @@
             Refresh
           </button>
         </div>
-        
+
         <div class="border-t border-dark-700 pt-4">
           <h4 class="font-medium text-dark-200 mb-3">Available Backups</h4>
-          
+
           <div v-if="loadingBackups" class="flex items-center justify-center py-8">
             <svg class="animate-spin h-6 w-6 text-godmode-500" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
             </svg>
           </div>
-          
+
           <div v-else-if="backups.length === 0" class="text-center py-8 text-dark-400">
             No backups yet. Click "Create Backup" to create your first backup.
           </div>
-          
+
           <div v-else class="space-y-2 max-h-64 overflow-auto">
-            <div 
-              v-for="backup in backups" 
+            <div
+              v-for="backup in backups"
               :key="backup.name"
               class="flex items-center justify-between p-3 bg-dark-700 rounded-lg"
             >
@@ -324,7 +324,7 @@
             </div>
           </div>
         </div>
-        
+
         <div v-if="commandOutput" class="terminal max-h-64">
           <pre>{{ commandOutput }}</pre>
         </div>
@@ -344,7 +344,7 @@
             {{ getTerminalPlaceholder() }}
           </span>
         </div>
-        
+
         <div class="flex gap-2">
           <input
             v-model="terminalCommand"
@@ -360,7 +360,7 @@
             Run
           </button>
         </div>
-        
+
         <div class="flex flex-wrap gap-2">
           <template v-if="selectedTerminalType === 'bash'">
             <button @click="quickTerminalCommand('ls -la')" class="btn btn-xs btn-secondary">ls -la</button>
@@ -393,17 +393,17 @@
             <button @click="quickTerminalCommand('about')" class="btn btn-xs btn-secondary">about</button>
           </template>
         </div>
-        
+
         <div class="terminal min-h-48 max-h-96 overflow-auto">
           <pre v-if="terminalOutput">{{ terminalOutput }}</pre>
           <span v-else class="text-dark-400">Output will appear here...</span>
         </div>
-        
+
         <div v-if="terminalHistory.length > 0" class="border-t border-dark-700 pt-2">
           <div class="text-xs text-dark-400 mb-1">Recent commands:</div>
           <div class="flex flex-wrap gap-1">
-            <button 
-              v-for="(cmd, i) in terminalHistory.slice(-5).reverse()" 
+            <button
+              v-for="(cmd, i) in terminalHistory.slice(-5).reverse()"
               :key="i"
               @click="terminalCommand = cmd"
               class="text-xs px-2 py-1 bg-dark-700 rounded text-dark-300 hover:bg-dark-600"
@@ -828,7 +828,7 @@ async function restoreBackup(backupName: string) {
   if (!confirm(`Are you sure you want to restore from "${backupName}"? This will overwrite the current database.`)) {
     return
   }
-  
+
   runningCommand.value = true
   commandOutput.value = ''
   try {
@@ -845,7 +845,7 @@ async function deleteBackupFile(backupName: string) {
   if (!confirm(`Are you sure you want to delete "${backupName}"?`)) {
     return
   }
-  
+
   runningCommand.value = true
   try {
     await api.deleteBackup(props.project.id, backupName)
@@ -871,17 +871,17 @@ let historyIndex = -1
 
 async function runTerminalCommand() {
   if (!terminalCommand.value.trim()) return
-  
+
   // Add to history
   terminalHistory.value.push(terminalCommand.value)
   historyIndex = -1
-  
+
   runningCommand.value = true
   terminalOutput.value = `$ ${terminalCommand.value}\n\nRunning...\n`
-  
+
   try {
     let result: string
-    
+
     switch (selectedTerminalType.value) {
       case 'tinker':
         result = await api.runTinkerCommand(props.project.id, terminalCommand.value)
@@ -898,7 +898,7 @@ async function runTerminalCommand() {
       default: // bash
         result = await api.execContainerCommand(props.project.id, 'app', terminalCommand.value)
     }
-    
+
     terminalOutput.value = `$ ${terminalCommand.value}\n\n${result}`
   } catch (e) {
     terminalOutput.value = `$ ${terminalCommand.value}\n\nError: ${e}`
@@ -915,7 +915,7 @@ function quickTerminalCommand(cmd: string) {
 
 function navigateHistory(direction: 'up' | 'down') {
   if (terminalHistory.value.length === 0) return
-  
+
   if (direction === 'up') {
     if (historyIndex < terminalHistory.value.length - 1) {
       historyIndex++

@@ -77,9 +77,9 @@
         <button @click="$emit('close')" class="btn btn-ghost" :disabled="importing">
           Cancel
         </button>
-        <button 
-          @click="importProject" 
-          class="btn btn-primary" 
+        <button
+          @click="importProject"
+          class="btn btn-primary"
           :disabled="importing || !projectName.trim() || !sourcePath.trim()"
         >
           📥 Import Project
@@ -115,10 +115,10 @@ async function browseFolder() {
       multiple: false,
       title: 'Select Laravel Project Folder'
     })
-    
+
     if (selected && typeof selected === 'string') {
       sourcePath.value = selected
-      
+
       // Auto-fill project name from folder name if empty
       if (!projectName.value) {
         const parts = selected.split('/')

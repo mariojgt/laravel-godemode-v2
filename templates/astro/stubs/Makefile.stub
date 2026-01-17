@@ -1,0 +1,56 @@
+.PHONY: help build up down restart logs shell install dev preview clean
+
+# Variables
+DOCKER_COMPOSE = docker compose
+PROJECT_NAME = {{PROJECT_NAME}}
+
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+build: ## Build Docker images
+	$(DOCKER_COMPOSE) build
+
+up: ## Start all containers
+	$(DOCKER_COMPOSE) up -d
+
+down: ## Stop all containers
+	$(DOCKER_COMPOSE) down
+
+restart: ## Restart all containers
+	$(DOCKER_COMPOSE) restart
+
+logs: ## View logs
+	$(DOCKER_COMPOSE) logs -f
+
+logs-app: ## View app logs only
+	$(DOCKER_COMPOSE) logs -f app
+
+shell: ## Open shell in app container
+	$(DOCKER_COMPOSE) exec app sh
+
+install: ## Install dependencies
+	$(DOCKER_COMPOSE) exec app npm install
+
+dev: up ## Start development server
+	$(DOCKER_COMPOSE) logs -f app
+
+build-prod: ## Build for production
+	$(DOCKER_COMPOSE) exec app npm run build
+
+preview: ## Preview production build
+	$(DOCKER_COMPOSE) exec app npm run preview -- --host 0.0.0.0
+
+add-integration: ## Add Astro integration (usage: make add-integration NAME=tailwind)
+	$(DOCKER_COMPOSE) exec app npx astro add $(NAME) -y
+
+check: ## Run Astro type checking
+	$(DOCKER_COMPOSE) exec app npx astro check
+
+sync: ## Sync Astro types
+	$(DOCKER_COMPOSE) exec app npx astro sync
+
+clean: ## Remove containers and volumes
+	$(DOCKER_COMPOSE) down -v --remove-orphans
+	rm -rf src/node_modules src/dist src/.astro
+
+fresh: clean build up install ## Fresh install

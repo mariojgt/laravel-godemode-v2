@@ -1,0 +1,11 @@
+FROM node:{{NODE_VERSION}}-alpine
+
+# Install git (needed for some npm packages)
+RUN apk add --no-cache git libc6-compat
+
+WORKDIR /app
+
+EXPOSE 3000
+
+# Default command - handles both fresh and existing projects
+CMD ["sh", "-c", "if [ -f package.json ]; then npm install && npm run dev -- --host 0.0.0.0; else echo 'No package.json found. Run: npx nuxi@latest init .' && sleep infinity; fi"]

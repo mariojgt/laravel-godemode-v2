@@ -12,7 +12,7 @@ export const useSettingsStore = defineStore('settings', () => {
     default_node_version: '18',
     theme: 'dark'
   })
-  
+
   const loaded = ref(false)
 
   async function loadSettings() {

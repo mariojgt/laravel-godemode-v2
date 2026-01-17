@@ -129,14 +129,14 @@ impl DockerManager {
 
     pub fn rebuild_project_streaming(app: &AppHandle, project_id: &str, project_path: &str) -> Result<String, String> {
         let path = Path::new(project_path);
-        
+
         // First stop
         Self::emit_output(app, project_id, "Stopping existing containers...", "status");
         let _ = Command::new("docker-compose")
             .args(["down"])
             .current_dir(path)
             .output();
-        
+
         // Rebuild with streaming
         Self::emit_output(app, project_id, "Building containers (this may take a while)...", "status");
         Self::run_docker_compose_streaming(app, project_id, project_path, &["up", "-d", "--build", "--force-recreate"])
@@ -144,15 +144,15 @@ impl DockerManager {
 
     pub fn install_laravel_streaming(app: &AppHandle, project_id: &str, project_path: &str, project_name: &str) -> Result<String, String> {
         let path = Path::new(project_path);
-        
+
         Self::emit_output(app, project_id, "🚀 Installing fresh Laravel application...", "status");
         Self::emit_output(app, project_id, "This may take a few minutes...", "status");
-        
+
         // Run composer create-project inside the app container
         let container_name = format!("{}_app", project_name);
-        
+
         Self::emit_output(app, project_id, &format!("Running: composer create-project laravel/laravel . in container {}", container_name), "status");
-        
+
         let mut child = Command::new("docker")
             .args([
                 "exec", "-w", "/var/www/html", &container_name,
@@ -191,25 +191,25 @@ impl DockerManager {
         }
 
         stdout_handle.join().ok();
-        
+
         let status = child.wait().map_err(|e| format!("Failed to wait for composer: {}", e))?;
-        
+
         if status.success() {
             Self::emit_output(app, project_id, "✓ Laravel installed successfully!", "status");
-            
+
             // Run additional setup commands
             Self::emit_output(app, project_id, "Running php artisan key:generate...", "status");
             let _ = Command::new("docker")
                 .args(["exec", "-w", "/var/www/html", &container_name, "php", "artisan", "key:generate", "--force"])
                 .current_dir(path)
                 .output();
-            
+
             Self::emit_output(app, project_id, "Setting storage permissions...", "status");
             let _ = Command::new("docker")
                 .args(["exec", "-w", "/var/www/html", &container_name, "chmod", "-R", "777", "storage", "bootstrap/cache"])
                 .current_dir(path)
                 .output();
-            
+
             Self::emit_output(app, project_id, "✓ Laravel setup complete!", "status");
             Ok("Laravel installed successfully".to_string())
         } else {
@@ -220,7 +220,7 @@ impl DockerManager {
 
     fn run_docker_compose_streaming(app: &AppHandle, project_id: &str, project_path: &str, args: &[&str]) -> Result<String, String> {
         let path = Path::new(project_path);
-        
+
         Self::emit_output(app, project_id, &format!("Running: docker-compose {}", args.join(" ")), "status");
 
         let mut child = Command::new("docker-compose")
@@ -258,9 +258,9 @@ impl DockerManager {
         }
 
         stdout_handle.join().ok();
-        
+
         let status = child.wait().map_err(|e| format!("Failed to wait for process: {}", e))?;
-        
+
         if status.success() {
             Self::emit_output(app, project_id, "✓ Command completed successfully", "status");
             Ok("Command completed successfully".to_string())
@@ -521,49 +521,49 @@ impl DockerManager {
     pub fn backup_database(project_path: &str, project_name: &str) -> Result<String, String> {
         let path = Path::new(project_path);
         let backups_dir = path.join("backups");
-        
+
         // Create backups directory if it doesn't exist
         std::fs::create_dir_all(&backups_dir)
             .map_err(|e| format!("Failed to create backups directory: {}", e))?;
-        
+
         // Generate backup filename with timestamp
         let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
         let backup_name = format!("backup_{}.sql", timestamp);
         let backup_path = format!("/var/www/html/backups/{}", backup_name);
-        
+
         // Run mysqldump inside the app container
         let dump_cmd = format!(
             "mysqldump -h db -u laravel -plaravel {} > {}",
             project_name, backup_path
         );
-        
+
         Self::exec_in_container(project_path, "app", &dump_cmd)?;
-        
+
         Ok(format!("Backup created: {}", backup_name))
     }
 
     pub fn restore_database(project_path: &str, project_name: &str, backup_name: &str) -> Result<String, String> {
         let backup_path = format!("/var/www/html/backups/{}", backup_name);
-        
+
         // Restore from backup file
         let restore_cmd = format!(
             "mysql -h db -u laravel -plaravel {} < {}",
             project_name, backup_path
         );
-        
+
         Self::exec_in_container(project_path, "app", &restore_cmd)?;
-        
+
         Ok(format!("Database restored from: {}", backup_name))
     }
 
     pub fn list_backups(project_path: &str) -> Result<Vec<String>, String> {
         let path = Path::new(project_path);
         let backups_dir = path.join("backups");
-        
+
         if !backups_dir.exists() {
             return Ok(Vec::new());
         }
-        
+
         let mut backups: Vec<String> = std::fs::read_dir(&backups_dir)
             .map_err(|e| format!("Failed to read backups directory: {}", e))?
             .filter_map(|entry| {
@@ -577,34 +577,34 @@ impl DockerManager {
                 })
             })
             .collect();
-        
+
         // Sort by name (which includes timestamp) in descending order
         backups.sort_by(|a, b| b.cmp(a));
-        
+
         Ok(backups)
     }
 
     pub fn delete_backup(project_path: &str, backup_name: &str) -> Result<String, String> {
         let path = Path::new(project_path);
         let backup_path = path.join("backups").join(backup_name);
-        
+
         if !backup_path.exists() {
             return Err(format!("Backup not found: {}", backup_name));
         }
-        
+
         std::fs::remove_file(&backup_path)
             .map_err(|e| format!("Failed to delete backup: {}", e))?;
-        
+
         Ok(format!("Backup deleted: {}", backup_name))
     }
 
     pub fn get_backup_size(project_path: &str, backup_name: &str) -> Result<u64, String> {
         let path = Path::new(project_path);
         let backup_path = path.join("backups").join(backup_name);
-        
+
         let metadata = std::fs::metadata(&backup_path)
             .map_err(|e| format!("Failed to get backup size: {}", e))?;
-        
+
         Ok(metadata.len())
     }
 

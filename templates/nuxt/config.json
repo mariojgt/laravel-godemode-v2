@@ -1,0 +1,208 @@
+{
+  "name": "Nuxt",
+  "description": "The intuitive Vue framework - Full-stack with file-based routing, auto-imports, and Nitro server",
+  "icon": "💚",
+  "type": "nuxt",
+  "category": "Full-Stack Framework",
+
+  "install": {
+    "command": "npx nuxi@latest init . --packageManager npm --gitInit false",
+    "requirements": ["node"],
+    "checkCommand": "node --version",
+    "timeout": 300000
+  },
+
+  "versions": {
+    "node": {
+      "default": "20",
+      "options": ["22", "20", "18"],
+      "labels": {
+        "22": "Node.js 22 (Latest)",
+        "20": "Node.js 20 LTS (Recommended)",
+        "18": "Node.js 18 LTS"
+      }
+    },
+    "nuxt": {
+      "default": "3",
+      "options": ["3"],
+      "labels": {
+        "3": "Nuxt 3 (Latest)"
+      }
+    }
+  },
+
+  "packageManagers": {
+    "npm": {
+      "required": true,
+      "description": "Node package manager"
+    },
+    "bun": {
+      "required": false,
+      "default": false,
+      "description": "Fast JavaScript runtime & package manager"
+    },
+    "pnpm": {
+      "required": false,
+      "default": true,
+      "description": "Fast, disk space efficient package manager"
+    },
+    "yarn": {
+      "required": false,
+      "default": false,
+      "description": "Yarn package manager"
+    }
+  },
+
+  "services": {
+    "nginx": {
+      "required": true,
+      "description": "Reverse proxy for production",
+      "icon": "🌐"
+    },
+    "postgresql": {
+      "required": false,
+      "default": true,
+      "description": "PostgreSQL database server",
+      "defaultPort": 5432,
+      "icon": "🐘"
+    },
+    "redis": {
+      "required": false,
+      "default": true,
+      "description": "In-memory data structure store",
+      "defaultPort": 6379,
+      "icon": "⚡"
+    },
+    "adminer": {
+      "required": false,
+      "default": false,
+      "description": "Database administration tool",
+      "defaultPort": 8080,
+      "icon": "🗃️",
+      "depends": ["postgresql"]
+    },
+    "mailhog": {
+      "required": false,
+      "default": false,
+      "description": "Email testing tool",
+      "defaultPort": 8025,
+      "icon": "📧"
+    }
+  },
+
+  "ports": {
+    "app": {
+      "default": 3000,
+      "description": "Main application port"
+    }
+  },
+
+  "options": {
+    "ssr": {
+      "default": true,
+      "description": "Enable Server-Side Rendering"
+    },
+    "typescript": {
+      "default": true,
+      "description": "Use TypeScript (enabled by default)"
+    },
+    "modules": {
+      "default": ["@nuxtjs/tailwindcss", "@pinia/nuxt"],
+      "options": ["@nuxtjs/tailwindcss", "@pinia/nuxt", "@nuxt/image", "@nuxt/content", "@nuxtjs/i18n", "@vueuse/nuxt", "@nuxt/devtools"],
+      "labels": {
+        "@nuxtjs/tailwindcss": "Tailwind CSS",
+        "@pinia/nuxt": "Pinia (State Management)",
+        "@nuxt/image": "Nuxt Image",
+        "@nuxt/content": "Nuxt Content (CMS)",
+        "@nuxtjs/i18n": "i18n (Internationalization)",
+        "@vueuse/nuxt": "VueUse",
+        "@nuxt/devtools": "Nuxt DevTools"
+      },
+      "description": "Nuxt modules to include"
+    }
+  },
+
+  "commands": {
+    "install": "npx nuxi@latest init . --packageManager npm --gitInit false",
+    "setup": [
+      "npm install @nuxtjs/tailwindcss @pinia/nuxt -D",
+      "npx tailwindcss init"
+    ],
+    "dev": "npm run dev -- --host 0.0.0.0",
+    "build": "npm run build",
+    "preview": "npm run preview"
+  },
+
+  "stubs": [
+    "docker-compose.yml.stub",
+    "Dockerfile.stub",
+    "nginx.conf.stub",
+    ".env.stub",
+    "Makefile.stub"
+  ],
+
+  "environment": {
+    "NODE_ENV": "development",
+    "NUXT_TELEMETRY_DISABLED": "1",
+    "DATABASE_URL": "postgresql://postgres:password@db:5432/{{PROJECT_NAME}}",
+    "REDIS_URL": "redis://redis:6379"
+  },
+
+  "commonCommands": [
+    {
+      "name": "dev",
+      "command": "npm run dev",
+      "description": "Start development server",
+      "category": "Development"
+    },
+    {
+      "name": "build",
+      "command": "npm run build",
+      "description": "Build for production",
+      "category": "Build"
+    },
+    {
+      "name": "preview",
+      "command": "npm run preview",
+      "description": "Preview production build",
+      "category": "Build"
+    },
+    {
+      "name": "generate",
+      "command": "npm run generate",
+      "description": "Generate static site",
+      "category": "Build"
+    },
+    {
+      "name": "postinstall",
+      "command": "npm run postinstall",
+      "description": "Prepare Nuxt",
+      "category": "Setup"
+    },
+    {
+      "name": "add module",
+      "command": "npx nuxi module add",
+      "description": "Add a Nuxt module",
+      "category": "Setup",
+      "prompt": "Module name:"
+    },
+    {
+      "name": "typecheck",
+      "command": "npx nuxi typecheck",
+      "description": "Run type checking",
+      "category": "Debug"
+    },
+    {
+      "name": "analyze",
+      "command": "npx nuxi analyze",
+      "description": "Analyze bundle size",
+      "category": "Debug"
+    },
+    {
+      "name": "cleanup",
+      "command": "npx nuxi cleanup",
+      "description": "Clean generated files",
+      "category": "Setup"
+    }
+  ]
+}

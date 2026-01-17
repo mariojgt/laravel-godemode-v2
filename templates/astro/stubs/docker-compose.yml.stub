@@ -1,0 +1,50 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NODE_VERSION={{NODE_VERSION}}
+    container_name: {{PROJECT_NAME}}_app
+    platform: linux/amd64
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./src:/app
+    working_dir: /app
+    networks:
+      - {{PROJECT_NAME}}_network
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - HOST=0.0.0.0
+      - PORT=4321
+    ports:
+      - "{{APP_PORT}}:4321"
+    command: npm run dev -- --host 0.0.0.0
+
+  nginx:
+    image: nginx:alpine
+    container_name: {{PROJECT_NAME}}_nginx
+    ports:
+      - "{{NGINX_PORT}}:80"
+    volumes:
+      - ./src/dist:/usr/share/nginx/html:ro
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - {{PROJECT_NAME}}_network
+    restart: unless-stopped
+
+{{POSTGRESQL_SERVICE}}
+
+{{REDIS_SERVICE}}
+
+{{MAILHOG_SERVICE}}
+
+networks:
+  {{PROJECT_NAME}}_network:
+    driver: bridge
+
+{{VOLUMES}}

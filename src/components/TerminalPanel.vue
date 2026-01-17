@@ -1,7 +1,7 @@
 <template>
   <div class="terminal-panel" :class="{ 'terminal-expanded': expanded }">
     <!-- Terminal Header -->
-    <div 
+    <div
       class="terminal-header"
       @click="expanded = !expanded"
     >
@@ -11,14 +11,14 @@
         <span v-if="logs.length > 0" class="text-xs text-dark-400">({{ logs.length }} entries)</span>
       </div>
       <div class="flex items-center gap-2">
-        <button 
-          @click.stop="clearLogs" 
+        <button
+          @click.stop="clearLogs"
           class="p-1 hover:bg-dark-700 rounded text-dark-400 hover:text-dark-200"
           title="Clear"
         >
           <TrashIcon class="w-4 h-4" />
         </button>
-        <button 
+        <button
           class="p-1 hover:bg-dark-700 rounded text-dark-400 hover:text-dark-200"
           :title="expanded ? 'Collapse' : 'Expand'"
         >
@@ -34,8 +34,8 @@
         No output yet. Start a project to see logs here.
       </div>
       <div v-else class="space-y-2">
-        <div 
-          v-for="(log, index) in logs" 
+        <div
+          v-for="(log, index) in logs"
           :key="index"
           class="terminal-entry"
           :class="getLogClass(log.type)"
@@ -79,7 +79,7 @@ watch(() => props.logs.length, async (newLen, oldLen) => {
   if (newLen > oldLen) {
     expanded.value = true
   }
-  
+
   await nextTick()
   if (terminalContent.value) {
     terminalContent.value.scrollTop = terminalContent.value.scrollHeight
@@ -91,10 +91,10 @@ function clearLogs() {
 }
 
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString('en-US', { 
-    hour: '2-digit', 
-    minute: '2-digit', 
-    second: '2-digit' 
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
   })
 }
 

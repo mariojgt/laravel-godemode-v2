@@ -1,0 +1,69 @@
+.PHONY: help build up down restart logs shell install dev build-prod preview generate clean
+
+# Variables
+DOCKER_COMPOSE = docker compose
+PROJECT_NAME = {{PROJECT_NAME}}
+
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+build: ## Build Docker images
+	$(DOCKER_COMPOSE) build
+
+up: ## Start all containers
+	$(DOCKER_COMPOSE) up -d
+
+down: ## Stop all containers
+	$(DOCKER_COMPOSE) down
+
+restart: ## Restart all containers
+	$(DOCKER_COMPOSE) restart
+
+logs: ## View logs
+	$(DOCKER_COMPOSE) logs -f
+
+logs-app: ## View app logs only
+	$(DOCKER_COMPOSE) logs -f app
+
+shell: ## Open shell in app container
+	$(DOCKER_COMPOSE) exec app sh
+
+install: ## Install dependencies
+	$(DOCKER_COMPOSE) exec app npm install
+
+dev: up ## Start development server
+	$(DOCKER_COMPOSE) logs -f app
+
+build-prod: ## Build for production
+	$(DOCKER_COMPOSE) exec app npm run build
+
+preview: ## Preview production build
+	$(DOCKER_COMPOSE) exec app npm run preview
+
+generate: ## Generate static site
+	$(DOCKER_COMPOSE) exec app npm run generate
+
+# Nuxt commands
+postinstall: ## Prepare Nuxt
+	$(DOCKER_COMPOSE) exec app npm run postinstall
+
+add-module: ## Add Nuxt module (usage: make add-module NAME=@nuxtjs/tailwindcss)
+	$(DOCKER_COMPOSE) exec app npx nuxi module add $(NAME)
+
+typecheck: ## Run type checking
+	$(DOCKER_COMPOSE) exec app npx nuxi typecheck
+
+analyze: ## Analyze bundle size
+	$(DOCKER_COMPOSE) exec app npx nuxi analyze
+
+cleanup: ## Clean Nuxt generated files
+	$(DOCKER_COMPOSE) exec app npx nuxi cleanup
+
+upgrade: ## Upgrade Nuxt
+	$(DOCKER_COMPOSE) exec app npx nuxi upgrade
+
+clean: ## Remove containers and volumes
+	$(DOCKER_COMPOSE) down -v --remove-orphans
+	rm -rf src/node_modules src/.nuxt src/.output
+
+fresh: clean build up install ## Fresh install

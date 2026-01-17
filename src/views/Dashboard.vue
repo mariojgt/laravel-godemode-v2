@@ -209,8 +209,68 @@
       @imported="onProjectImported"
     />
 
+    <!-- Custom Template Project Modal -->
+    <div v-if="showCustomTemplateModal && pendingCustomTemplate" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div class="bg-dark-800 rounded-2xl max-w-lg w-full overflow-hidden">
+        <div class="p-6 border-b border-dark-700">
+          <h2 class="text-xl font-bold text-dark-100">Create Project from Template</h2>
+          <p class="text-sm text-dark-400 mt-1">Using: {{ pendingCustomTemplate.name }}</p>
+        </div>
+
+        <div class="p-6">
+          <div class="mb-4">
+            <label class="block text-dark-300 mb-2">Project Name *</label>
+            <input
+              v-model="customProjectName"
+              type="text"
+              placeholder="my-awesome-project"
+              class="w-full px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 placeholder-dark-500"
+              :disabled="customTemplateCreating"
+            />
+          </div>
+
+          <div class="mb-4 p-3 bg-dark-700 rounded-lg">
+            <h4 class="text-sm font-medium text-dark-300 mb-2">Included Services</h4>
+            <div class="flex flex-wrap gap-1">
+              <span
+                v-for="block in pendingCustomTemplate.blocks"
+                :key="block.blockId"
+                class="text-xs px-2 py-1 bg-dark-600 rounded text-dark-200"
+              >
+                {{ block.blockId }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-6 border-t border-dark-700 flex justify-end gap-3">
+          <button
+            @click="showCustomTemplateModal = false; pendingCustomTemplate = null"
+            class="btn btn-secondary"
+            :disabled="customTemplateCreating"
+          >
+            Cancel
+          </button>
+          <button
+            @click="createFromCustomTemplate"
+            class="btn btn-primary"
+            :disabled="!customProjectName.trim() || customTemplateCreating"
+          >
+            <span v-if="customTemplateCreating" class="flex items-center gap-2">
+              <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              Creating...
+            </span>
+            <span v-else>Create Project</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Terminal Panel -->
-    <TerminalPanel 
+    <TerminalPanel
       :logs="terminalLogs"
       @clear="terminalLogs = []"
     />
@@ -252,6 +312,10 @@ const store = useProjectsStore()
 const settingsStore = useSettingsStore()
 const showCreateModal = ref(false)
 const showImportModal = ref(false)
+const showCustomTemplateModal = ref(false)
+const pendingCustomTemplate = ref<any>(null)
+const customProjectName = ref('')
+const customTemplateCreating = ref(false)
 const projectToDelete = ref<Project | null>(null)
 const envProject = ref<Project | null>(null)
 const cloneProject = ref<Project | null>(null)
@@ -277,17 +341,29 @@ function getProjectName(projectId: string): string {
 
 onMounted(async () => {
   store.fetchProjects()
-  
+
   // Load settings if not already loaded
   if (!settingsStore.loaded) {
     await settingsStore.loadSettings()
   }
-  
+
+  // Check if we have a custom template to use from Templates page
+  const customTemplateJson = sessionStorage.getItem('use-custom-template')
+  if (customTemplateJson) {
+    sessionStorage.removeItem('use-custom-template')
+    try {
+      pendingCustomTemplate.value = JSON.parse(customTemplateJson)
+      showCustomTemplateModal.value = true
+    } catch (e) {
+      console.error('Failed to parse custom template:', e)
+    }
+  }
+
   // Listen for docker output events (real-time streaming)
   unlistenDockerOutput = await listen<DockerOutputEvent>('docker-output', (event) => {
     const { project_id, line, stream_type } = event.payload
     const projectName = getProjectName(project_id)
-    
+
     let logType: 'info' | 'success' | 'error' | 'warning' = 'info'
     if (stream_type === 'stderr') {
       logType = 'warning'
@@ -298,7 +374,7 @@ onMounted(async () => {
         logType = 'error'
       }
     }
-    
+
     addLog('output', projectName, line, logType)
   })
 })
@@ -317,9 +393,9 @@ async function startProject(projectId: string) {
   actionLoading[projectId] = true
   const project = store.projects.find(p => p.id === projectId)
   const projectName = project?.name || projectId
-  
+
   addLog('starting', projectName, 'Starting Docker containers...', 'info')
-  
+
   try {
     // Use streaming version for real-time output
     const output = await api.startProjectStreaming(projectId)
@@ -339,9 +415,9 @@ async function stopProject(projectId: string) {
   actionLoading[projectId] = true
   const project = store.projects.find(p => p.id === projectId)
   const projectName = project?.name || projectId
-  
+
   addLog('stopping', projectName, 'Stopping Docker containers...', 'info')
-  
+
   try {
     // Use streaming version for real-time output
     const output = await api.stopProjectStreaming(projectId)
@@ -360,9 +436,9 @@ async function rebuildProject(projectId: string) {
   actionLoading[projectId] = true
   const project = store.projects.find(p => p.id === projectId)
   const projectName = project?.name || projectId
-  
+
   addLog('rebuilding', projectName, 'Rebuilding Docker containers (this may take a while)...', 'warning')
-  
+
   try {
     // Use streaming version for real-time output
     const output = await api.rebuildProjectStreaming(projectId)
@@ -423,6 +499,28 @@ function onProjectCloned(_project: Project) {
 function onProjectImported(_project: Project) {
   showImportModal.value = false
   store.fetchProjects()
+}
+
+async function createFromCustomTemplate() {
+  if (!customProjectName.value.trim() || !pendingCustomTemplate.value) return
+
+  customTemplateCreating.value = true
+  addLog('creating', customProjectName.value, 'Creating project from custom template...', 'info')
+
+  try {
+    await api.createProjectFromCustomTemplate(customProjectName.value.trim(), pendingCustomTemplate.value)
+    addLog('completed', customProjectName.value, 'Project created successfully', 'success')
+    showCustomTemplateModal.value = false
+    pendingCustomTemplate.value = null
+    customProjectName.value = ''
+    store.fetchProjects()
+  } catch (e) {
+    const errorMsg = e instanceof Error ? e.message : String(e)
+    addLog('error', customProjectName.value, `Failed to create: ${errorMsg}`, 'error')
+    console.error('Failed to create project from custom template:', e)
+  } finally {
+    customTemplateCreating.value = false
+  }
 }
 
 function formatDate(dateString: string): string {

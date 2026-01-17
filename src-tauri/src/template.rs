@@ -32,7 +32,7 @@ pub fn create_project_from_template(
     config: ProjectConfig,
 ) -> Result<Project, String> {
     println!("[Template] Starting project creation: {}", name);
-    
+
     let project_id = Uuid::new_v4().to_string();
     let project_path = Path::new(base_path).join(name);
     println!("[Template] Project path: {:?}", project_path);
@@ -40,7 +40,7 @@ pub fn create_project_from_template(
     // Create project directory structure
     fs::create_dir_all(&project_path).map_err(|e| format!("Failed to create project directory: {}", e))?;
     println!("[Template] Created project directory");
-    
+
     fs::create_dir_all(project_path.join("src")).map_err(|e| format!("Failed to create src directory: {}", e))?;
     fs::create_dir_all(project_path.join("docker")).map_err(|e| format!("Failed to create docker directory: {}", e))?;
     println!("[Template] Created subdirectories");
@@ -67,7 +67,7 @@ pub fn create_project_from_template(
     for (stub_name, output_path) in stub_mappings {
         let stub_path = stubs_dir.join(stub_name);
         println!("[Template] Processing stub: {} -> {}", stub_name, output_path);
-        
+
         if stub_path.exists() {
             let stub_content = fs::read_to_string(&stub_path)
                 .map_err(|e| format!("Failed to read stub {}: {}", stub_name, e))?;
@@ -163,6 +163,79 @@ fn prepare_template_data(name: &str, config: &ProjectConfig) -> serde_json::Valu
         String::new()
     };
 
+    // Generate PostgreSQL service block (for JS frameworks)
+    let postgresql_service = if config.services.mysql {
+        format!(r#"
+  db:
+    image: postgres:16-alpine
+    container_name: {}_db
+    environment:
+      POSTGRES_DB: {}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "{}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - {}_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+"#, name, name, config.ports.db, name)
+    } else {
+        String::new()
+    };
+
+    // Generate Adminer service block (for JS frameworks)
+    let adminer_service = if config.services.phpmyadmin && config.services.mysql {
+        format!(r#"
+  adminer:
+    image: adminer:latest
+    container_name: {}_adminer
+    ports:
+      - "{}:8080"
+    depends_on:
+      - db
+    networks:
+      - {}_network
+    restart: unless-stopped
+"#, name, config.ports.phpmyadmin, name)
+    } else {
+        String::new()
+    };
+
+    // Build volumes section
+    let mut volumes = vec![];
+    if config.services.mysql {
+        volumes.push("  postgres_data:");
+    }
+    if config.services.redis {
+        volumes.push("  redis_data:");
+    }
+    let volumes_section = if volumes.is_empty() {
+        String::new()
+    } else {
+        format!("volumes:\n{}", volumes.join("\n"))
+    };
+
+    // DB depends for JS frameworks
+    let db_depends = if config.services.mysql {
+        "db:\n        condition: service_healthy"
+    } else {
+        ""
+    };
+
+    // Redis depends for JS frameworks  
+    let redis_depends = if config.services.redis {
+        "- redis"
+    } else {
+        ""
+    };
+
     json!({
         "PROJECT_NAME": name,
         "PHP_VERSION": config.php_version.clone().unwrap_or("8.4".to_string()),
@@ -170,6 +243,7 @@ fn prepare_template_data(name: &str, config: &ProjectConfig) -> serde_json::Valu
         "INSTALL_BUN": config.install_bun.to_string(),
         "INSTALL_PNPM": config.install_pnpm.to_string(),
         "APP_PORT": config.ports.app,
+        "NGINX_PORT": 80,
         "VITE_PORT": config.ports.vite,
         "DB_PORT": config.ports.db,
         "REDIS_PORT": config.ports.redis,
@@ -180,6 +254,10 @@ fn prepare_template_data(name: &str, config: &ProjectConfig) -> serde_json::Valu
         "REDIS_VOLUME": if config.services.redis { "\n  redis_data:\n    driver: local" } else { "" },
         "PHPMYADMIN_SERVICE": phpmyadmin_service,
         "MAILHOG_SERVICE": mailhog_service,
+        "POSTGRESQL_SERVICE": postgresql_service,
+        "ADMINER_SERVICE": adminer_service,
+        "VOLUMES": volumes_section,
+        "DB_DEPENDS": db_depends,
     })
 }
 
@@ -224,6 +302,27 @@ fn get_stub_mappings(template_type: &str) -> Vec<(&'static str, &'static str)> {
             ("mysql.cnf.stub", "docker/mysql.cnf"),
             ("package.json.stub", "src/package.json"),
             ("index.js.stub", "src/index.js"),
+        ],
+        "astro" => vec![
+            ("docker-compose.yml.stub", "docker-compose.yml"),
+            ("Dockerfile.stub", "Dockerfile"),
+            ("Makefile.stub", "Makefile"),
+            (".env.stub", ".env"),
+            ("nginx.conf.stub", "docker/nginx.conf"),
+        ],
+        "nextjs" => vec![
+            ("docker-compose.yml.stub", "docker-compose.yml"),
+            ("Dockerfile.stub", "Dockerfile"),
+            ("Makefile.stub", "Makefile"),
+            (".env.stub", ".env"),
+            ("nginx.conf.stub", "docker/nginx.conf"),
+        ],
+        "nuxt" => vec![
+            ("docker-compose.yml.stub", "docker-compose.yml"),
+            ("Dockerfile.stub", "Dockerfile"),
+            ("Makefile.stub", "Makefile"),
+            (".env.stub", ".env"),
+            ("nginx.conf.stub", "docker/nginx.conf"),
         ],
         _ => vec![],
     }

@@ -1,0 +1,13 @@
+FROM node:{{NODE_VERSION}}-alpine
+
+# Install git (needed for some npm packages)
+RUN apk add --no-cache git
+
+WORKDIR /app
+
+# For development, we mount the source directory
+# So we just need to ensure npm is ready
+EXPOSE 4321
+
+# Default command - can be overridden in docker-compose
+CMD ["sh", "-c", "if [ -f package.json ]; then npm install && npm run dev -- --host 0.0.0.0; else echo 'No package.json found. Run: npm create astro@latest .' && sleep infinity; fi"]
