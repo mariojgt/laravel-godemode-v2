@@ -418,8 +418,14 @@ pub fn run_seeders(project_id: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn fresh_database(project_id: String) -> Result<String, String> {
+pub fn fresh_database(project_id: String, create_backup: bool) -> Result<String, String> {
     let project = ProjectManager::get_project(&project_id)?;
+    
+    // Auto-backup before destructive operation if requested
+    if create_backup {
+        let _ = DockerManager::backup_database(&project.path, &project.name);
+    }
+    
     DockerManager::run_artisan(&project.path, "migrate:fresh --seed --force")
 }
 
@@ -584,6 +590,100 @@ pub fn clone_project(project_id: String, new_name: String) -> Result<Project, St
 #[tauri::command]
 pub fn import_project(source_path: String, name: String) -> Result<Project, String> {
     ProjectManager::import_project(&source_path, &name)
+}
+
+// ============ Database Backup & Restore Commands ============
+
+#[tauri::command]
+pub fn backup_database(project_id: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::backup_database(&project.path, &project.name)
+}
+
+#[tauri::command]
+pub fn restore_database(project_id: String, backup_name: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::restore_database(&project.path, &project.name, &backup_name)
+}
+
+#[tauri::command]
+pub fn list_backups(project_id: String) -> Result<Vec<String>, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::list_backups(&project.path)
+}
+
+#[tauri::command]
+pub fn delete_backup(project_id: String, backup_name: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::delete_backup(&project.path, &backup_name)
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct BackupInfo {
+    pub name: String,
+    pub size: u64,
+    pub created_at: String,
+}
+
+#[tauri::command]
+pub fn get_backups_with_info(project_id: String) -> Result<Vec<BackupInfo>, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    let backups = DockerManager::list_backups(&project.path)?;
+    
+    let mut backup_infos = Vec::new();
+    for backup in backups {
+        let size = DockerManager::get_backup_size(&project.path, &backup).unwrap_or(0);
+        
+        // Extract timestamp from filename: backup_YYYYMMDD_HHMMSS.sql
+        let created_at = if backup.starts_with("backup_") && backup.len() >= 22 {
+            let date_part = &backup[7..15]; // YYYYMMDD
+            let time_part = &backup[16..22]; // HHMMSS
+            format!(
+                "{}-{}-{} {}:{}:{}",
+                &date_part[0..4], &date_part[4..6], &date_part[6..8],
+                &time_part[0..2], &time_part[2..4], &time_part[4..6]
+            )
+        } else {
+            "Unknown".to_string()
+        };
+        
+        backup_infos.push(BackupInfo {
+            name: backup,
+            size,
+            created_at,
+        });
+    }
+    
+    Ok(backup_infos)
+}
+
+// ============ Terminal / Exec Commands ============
+
+#[tauri::command]
+pub fn exec_container_command(project_id: String, service: String, command: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::exec_interactive_command(&project.path, &service, &command)
+}
+
+#[tauri::command]
+pub fn run_tinker_command(project_id: String, code: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    // Escape the code for shell and run through tinker
+    let escaped_code = code.replace("'", "'\\''");
+    let command = format!("echo '{}' | php artisan tinker 2>&1", escaped_code);
+    DockerManager::exec_in_container(&project.path, "app", &command)
+}
+
+#[tauri::command]
+pub fn run_composer_command(project_id: String, command: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::exec_in_container(&project.path, "app", &format!("composer {}", command))
+}
+
+#[tauri::command]
+pub fn run_npm_command(project_id: String, command: String) -> Result<String, String> {
+    let project = ProjectManager::get_project(&project_id)?;
+    DockerManager::exec_in_container(&project.path, "app", &format!("npm {}", command))
 }
 
 // ============ Helper Functions ============

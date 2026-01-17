@@ -1,6 +1,6 @@
 # Laravel God Mode
 
-A powerful cross-platform desktop application built with **Tauri v2**, **Vue.js 3**, and **Tailwind CSS** for managing Laravel and Node.js Docker development environments.
+A powerful cross-platform desktop application built with **Tauri v2**, **Vue.js 3**, and **Tailwind CSS** for managing Laravel and Node.js Docker development environments, with this tool you don't need to spent time setip uo your system you can just use the power of docker and this tool to help you create laravel applications in no time.
 
 ![Laravel God Mode](./screenshots/dashboard.png)
 

@@ -78,3 +78,9 @@ export interface Settings {
   default_node_version: string
   theme: string
 }
+
+export interface BackupInfo {
+  name: string
+  size: number
+  created_at: string
+}

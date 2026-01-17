@@ -267,6 +267,153 @@
         </div>
       </div>
 
+      <!-- Backups Tab -->
+      <div v-else-if="activeTab === 'backups'" class="space-y-4">
+        <div class="flex gap-2 flex-wrap">
+          <button @click="createBackup" class="btn btn-primary" :disabled="backupInProgress">
+            <span v-if="backupInProgress" class="flex items-center">
+              <svg class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              Creating...
+            </span>
+            <span v-else>💾 Create Backup</span>
+          </button>
+          <button @click="loadBackups" class="btn btn-secondary" :disabled="loadingBackups">
+            <ArrowPathIcon class="w-4 h-4" :class="{ 'animate-spin': loadingBackups }" />
+            Refresh
+          </button>
+        </div>
+        
+        <div class="border-t border-dark-700 pt-4">
+          <h4 class="font-medium text-dark-200 mb-3">Available Backups</h4>
+          
+          <div v-if="loadingBackups" class="flex items-center justify-center py-8">
+            <svg class="animate-spin h-6 w-6 text-godmode-500" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+          </div>
+          
+          <div v-else-if="backups.length === 0" class="text-center py-8 text-dark-400">
+            No backups yet. Click "Create Backup" to create your first backup.
+          </div>
+          
+          <div v-else class="space-y-2 max-h-64 overflow-auto">
+            <div 
+              v-for="backup in backups" 
+              :key="backup.name"
+              class="flex items-center justify-between p-3 bg-dark-700 rounded-lg"
+            >
+              <div class="flex-1">
+                <div class="font-mono text-sm text-dark-200">{{ backup.name }}</div>
+                <div class="flex gap-3 text-xs text-dark-400">
+                  <span>📅 {{ backup.created_at }}</span>
+                  <span>📦 {{ formatFileSize(backup.size) }}</span>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button @click="restoreBackup(backup.name)" class="btn btn-xs btn-primary" :disabled="runningCommand">
+                  ↩️ Restore
+                </button>
+                <button @click="deleteBackupFile(backup.name)" class="btn btn-xs btn-danger" :disabled="runningCommand">
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="commandOutput" class="terminal max-h-64">
+          <pre>{{ commandOutput }}</pre>
+        </div>
+      </div>
+
+      <!-- Terminal Tab -->
+      <div v-else-if="activeTab === 'terminal'" class="space-y-4">
+        <div class="flex gap-2 items-center">
+          <select v-model="selectedTerminalType" class="select w-40">
+            <option value="bash">Bash Shell</option>
+            <option value="tinker">PHP Tinker</option>
+            <option value="composer">Composer</option>
+            <option value="npm">NPM</option>
+            <option value="artisan">Artisan</option>
+          </select>
+          <span class="text-dark-400 text-sm">
+            {{ getTerminalPlaceholder() }}
+          </span>
+        </div>
+        
+        <div class="flex gap-2">
+          <input
+            v-model="terminalCommand"
+            type="text"
+            class="input flex-1 font-mono"
+            :placeholder="getTerminalPlaceholder()"
+            @keyup.enter="runTerminalCommand"
+            @keyup.up="navigateHistory('up')"
+            @keyup.down="navigateHistory('down')"
+          >
+          <button @click="runTerminalCommand" class="btn btn-primary" :disabled="runningCommand">
+            <PlayIcon class="w-4 h-4" />
+            Run
+          </button>
+        </div>
+        
+        <div class="flex flex-wrap gap-2">
+          <template v-if="selectedTerminalType === 'bash'">
+            <button @click="quickTerminalCommand('ls -la')" class="btn btn-xs btn-secondary">ls -la</button>
+            <button @click="quickTerminalCommand('pwd')" class="btn btn-xs btn-secondary">pwd</button>
+            <button @click="quickTerminalCommand('cat .env')" class="btn btn-xs btn-secondary">cat .env</button>
+            <button @click="quickTerminalCommand('php -v')" class="btn btn-xs btn-secondary">php -v</button>
+            <button @click="quickTerminalCommand('node -v')" class="btn btn-xs btn-secondary">node -v</button>
+          </template>
+          <template v-else-if="selectedTerminalType === 'tinker'">
+            <button @click="quickTerminalCommand('User::count()')" class="btn btn-xs btn-secondary">User::count()</button>
+            <button @click="quickTerminalCommand('DB::connection()->getDatabaseName()')" class="btn btn-xs btn-secondary">DB Name</button>
+            <button @click="quickTerminalCommand(`config('app.name')`)" class="btn btn-xs btn-secondary">App Name</button>
+          </template>
+          <template v-else-if="selectedTerminalType === 'composer'">
+            <button @click="quickTerminalCommand('install')" class="btn btn-xs btn-secondary">install</button>
+            <button @click="quickTerminalCommand('update')" class="btn btn-xs btn-secondary">update</button>
+            <button @click="quickTerminalCommand('dump-autoload')" class="btn btn-xs btn-secondary">dump-autoload</button>
+            <button @click="quickTerminalCommand('show --outdated')" class="btn btn-xs btn-secondary">outdated</button>
+          </template>
+          <template v-else-if="selectedTerminalType === 'npm'">
+            <button @click="quickTerminalCommand('install')" class="btn btn-xs btn-secondary">install</button>
+            <button @click="quickTerminalCommand('run dev')" class="btn btn-xs btn-secondary">run dev</button>
+            <button @click="quickTerminalCommand('run build')" class="btn btn-xs btn-secondary">run build</button>
+            <button @click="quickTerminalCommand('outdated')" class="btn btn-xs btn-secondary">outdated</button>
+          </template>
+          <template v-else-if="selectedTerminalType === 'artisan'">
+            <button @click="quickTerminalCommand('route:list')" class="btn btn-xs btn-secondary">route:list</button>
+            <button @click="quickTerminalCommand('migrate:status')" class="btn btn-xs btn-secondary">migrate:status</button>
+            <button @click="quickTerminalCommand('config:show app')" class="btn btn-xs btn-secondary">config:show</button>
+            <button @click="quickTerminalCommand('about')" class="btn btn-xs btn-secondary">about</button>
+          </template>
+        </div>
+        
+        <div class="terminal min-h-48 max-h-96 overflow-auto">
+          <pre v-if="terminalOutput">{{ terminalOutput }}</pre>
+          <span v-else class="text-dark-400">Output will appear here...</span>
+        </div>
+        
+        <div v-if="terminalHistory.length > 0" class="border-t border-dark-700 pt-2">
+          <div class="text-xs text-dark-400 mb-1">Recent commands:</div>
+          <div class="flex flex-wrap gap-1">
+            <button 
+              v-for="(cmd, i) in terminalHistory.slice(-5).reverse()" 
+              :key="i"
+              @click="terminalCommand = cmd"
+              class="text-xs px-2 py-1 bg-dark-700 rounded text-dark-300 hover:bg-dark-600"
+            >
+              {{ cmd }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Logs Tab -->
       <div v-else-if="activeTab === 'logs'" class="space-y-4">
         <div class="flex gap-2 mb-4">
@@ -293,7 +440,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { api } from '@/lib/api'
-import type { Project, ServiceStatus, SupervisorStatus } from '@/lib/types'
+import type { Project, ServiceStatus, SupervisorStatus, BackupInfo } from '@/lib/types'
 import {
   CodeBracketIcon,
   PlayIcon,
@@ -320,6 +467,17 @@ const selectedLogService = ref('app')
 const failedJobs = ref<any[]>([])
 const scheduledTasks = ref('')
 
+// Backups state
+const backups = ref<BackupInfo[]>([])
+const loadingBackups = ref(false)
+const backupInProgress = ref(false)
+
+// Terminal state
+const terminalCommand = ref('')
+const terminalOutput = ref('')
+const terminalHistory = ref<string[]>([])
+const selectedTerminalType = ref('bash')
+
 const supervisorStatus = ref<SupervisorStatus>({
   total_programs: 0,
   running: 0,
@@ -331,11 +489,13 @@ const supervisorStatus = ref<SupervisorStatus>({
 const tabs = [
   { id: 'services', name: 'Services' },
   { id: 'artisan', name: 'Artisan' },
+  { id: 'terminal', name: 'Terminal' },
   { id: 'queue', name: 'Queue' },
   { id: 'scheduler', name: 'Scheduler' },
   { id: 'supervisor', name: 'Supervisor' },
   { id: 'cache', name: 'Cache' },
   { id: 'database', name: 'Database' },
+  { id: 'backups', name: 'Backups' },
   { id: 'logs', name: 'Logs' }
 ]
 
@@ -633,6 +793,152 @@ async function fetchLogs() {
     logs.value = `Error fetching logs: ${e}`
   } finally {
     loadingLogs.value = false
+  }
+}
+
+// ============ Backup Functions ============
+
+async function loadBackups() {
+  loadingBackups.value = true
+  try {
+    backups.value = await api.getBackupsWithInfo(props.project.id)
+  } catch (e) {
+    console.error('Failed to load backups:', e)
+    backups.value = []
+  } finally {
+    loadingBackups.value = false
+  }
+}
+
+async function createBackup() {
+  backupInProgress.value = true
+  commandOutput.value = ''
+  try {
+    const result = await api.backupDatabase(props.project.id)
+    commandOutput.value = result
+    await loadBackups()
+  } catch (e) {
+    commandOutput.value = `Error: ${e}`
+  } finally {
+    backupInProgress.value = false
+  }
+}
+
+async function restoreBackup(backupName: string) {
+  if (!confirm(`Are you sure you want to restore from "${backupName}"? This will overwrite the current database.`)) {
+    return
+  }
+  
+  runningCommand.value = true
+  commandOutput.value = ''
+  try {
+    const result = await api.restoreDatabase(props.project.id, backupName)
+    commandOutput.value = result
+  } catch (e) {
+    commandOutput.value = `Error: ${e}`
+  } finally {
+    runningCommand.value = false
+  }
+}
+
+async function deleteBackupFile(backupName: string) {
+  if (!confirm(`Are you sure you want to delete "${backupName}"?`)) {
+    return
+  }
+  
+  runningCommand.value = true
+  try {
+    await api.deleteBackup(props.project.id, backupName)
+    await loadBackups()
+  } catch (e) {
+    commandOutput.value = `Error: ${e}`
+  } finally {
+    runningCommand.value = false
+  }
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+// ============ Terminal Functions ============
+
+let historyIndex = -1
+
+async function runTerminalCommand() {
+  if (!terminalCommand.value.trim()) return
+  
+  // Add to history
+  terminalHistory.value.push(terminalCommand.value)
+  historyIndex = -1
+  
+  runningCommand.value = true
+  terminalOutput.value = `$ ${terminalCommand.value}\n\nRunning...\n`
+  
+  try {
+    let result: string
+    
+    switch (selectedTerminalType.value) {
+      case 'tinker':
+        result = await api.runTinkerCommand(props.project.id, terminalCommand.value)
+        break
+      case 'composer':
+        result = await api.runComposerCommand(props.project.id, terminalCommand.value)
+        break
+      case 'npm':
+        result = await api.runNpmCommand(props.project.id, terminalCommand.value)
+        break
+      case 'artisan':
+        result = await api.runArtisanCommand(props.project.id, terminalCommand.value)
+        break
+      default: // bash
+        result = await api.execContainerCommand(props.project.id, 'app', terminalCommand.value)
+    }
+    
+    terminalOutput.value = `$ ${terminalCommand.value}\n\n${result}`
+  } catch (e) {
+    terminalOutput.value = `$ ${terminalCommand.value}\n\nError: ${e}`
+  } finally {
+    runningCommand.value = false
+    terminalCommand.value = ''
+  }
+}
+
+function quickTerminalCommand(cmd: string) {
+  terminalCommand.value = cmd
+  runTerminalCommand()
+}
+
+function navigateHistory(direction: 'up' | 'down') {
+  if (terminalHistory.value.length === 0) return
+  
+  if (direction === 'up') {
+    if (historyIndex < terminalHistory.value.length - 1) {
+      historyIndex++
+      terminalCommand.value = terminalHistory.value[terminalHistory.value.length - 1 - historyIndex]
+    }
+  } else {
+    if (historyIndex > 0) {
+      historyIndex--
+      terminalCommand.value = terminalHistory.value[terminalHistory.value.length - 1 - historyIndex]
+    } else {
+      historyIndex = -1
+      terminalCommand.value = ''
+    }
+  }
+}
+
+function getTerminalPlaceholder(): string {
+  switch (selectedTerminalType.value) {
+    case 'tinker': return 'PHP code (e.g., User::count())'
+    case 'composer': return 'composer command (e.g., install, update)'
+    case 'npm': return 'npm command (e.g., install, run dev)'
+    case 'artisan': return 'artisan command (e.g., migrate, route:list)'
+    default: return 'bash command (e.g., ls -la)'
   }
 }
 </script>

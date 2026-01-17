@@ -515,4 +515,102 @@ impl DockerManager {
     pub fn stop_scheduler(project_path: &str) -> Result<String, String> {
         Self::exec_in_container(project_path, "app", "supervisorctl stop laravel-scheduler")
     }
+
+    // ============ Database Backup & Restore ============
+
+    pub fn backup_database(project_path: &str, project_name: &str) -> Result<String, String> {
+        let path = Path::new(project_path);
+        let backups_dir = path.join("backups");
+        
+        // Create backups directory if it doesn't exist
+        std::fs::create_dir_all(&backups_dir)
+            .map_err(|e| format!("Failed to create backups directory: {}", e))?;
+        
+        // Generate backup filename with timestamp
+        let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+        let backup_name = format!("backup_{}.sql", timestamp);
+        let backup_path = format!("/var/www/html/backups/{}", backup_name);
+        
+        // Run mysqldump inside the app container
+        let dump_cmd = format!(
+            "mysqldump -h db -u laravel -plaravel {} > {}",
+            project_name, backup_path
+        );
+        
+        Self::exec_in_container(project_path, "app", &dump_cmd)?;
+        
+        Ok(format!("Backup created: {}", backup_name))
+    }
+
+    pub fn restore_database(project_path: &str, project_name: &str, backup_name: &str) -> Result<String, String> {
+        let backup_path = format!("/var/www/html/backups/{}", backup_name);
+        
+        // Restore from backup file
+        let restore_cmd = format!(
+            "mysql -h db -u laravel -plaravel {} < {}",
+            project_name, backup_path
+        );
+        
+        Self::exec_in_container(project_path, "app", &restore_cmd)?;
+        
+        Ok(format!("Database restored from: {}", backup_name))
+    }
+
+    pub fn list_backups(project_path: &str) -> Result<Vec<String>, String> {
+        let path = Path::new(project_path);
+        let backups_dir = path.join("backups");
+        
+        if !backups_dir.exists() {
+            return Ok(Vec::new());
+        }
+        
+        let mut backups: Vec<String> = std::fs::read_dir(&backups_dir)
+            .map_err(|e| format!("Failed to read backups directory: {}", e))?
+            .filter_map(|entry| {
+                entry.ok().and_then(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    if name.ends_with(".sql") {
+                        Some(name)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect();
+        
+        // Sort by name (which includes timestamp) in descending order
+        backups.sort_by(|a, b| b.cmp(a));
+        
+        Ok(backups)
+    }
+
+    pub fn delete_backup(project_path: &str, backup_name: &str) -> Result<String, String> {
+        let path = Path::new(project_path);
+        let backup_path = path.join("backups").join(backup_name);
+        
+        if !backup_path.exists() {
+            return Err(format!("Backup not found: {}", backup_name));
+        }
+        
+        std::fs::remove_file(&backup_path)
+            .map_err(|e| format!("Failed to delete backup: {}", e))?;
+        
+        Ok(format!("Backup deleted: {}", backup_name))
+    }
+
+    pub fn get_backup_size(project_path: &str, backup_name: &str) -> Result<u64, String> {
+        let path = Path::new(project_path);
+        let backup_path = path.join("backups").join(backup_name);
+        
+        let metadata = std::fs::metadata(&backup_path)
+            .map_err(|e| format!("Failed to get backup size: {}", e))?;
+        
+        Ok(metadata.len())
+    }
+
+    // ============ Terminal / Exec ============
+
+    pub fn exec_interactive_command(project_path: &str, service: &str, command: &str) -> Result<String, String> {
+        Self::exec_in_container(project_path, service, command)
+    }
 }

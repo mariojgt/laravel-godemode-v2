@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import type { Project, ProjectConfig, Template, Settings, ServiceStatus, SupervisorStatus } from './types'
+import type { Project, ProjectConfig, Template, Settings, ServiceStatus, SupervisorStatus, BackupInfo } from './types'
 
 // Project API
 export const api = {
@@ -187,8 +187,46 @@ export const api = {
     return await invoke('run_seeders', { projectId })
   },
 
-  async freshDatabase(projectId: string): Promise<string> {
-    return await invoke('fresh_database', { projectId })
+  async freshDatabase(projectId: string, createBackup: boolean = true): Promise<string> {
+    return await invoke('fresh_database', { projectId, createBackup })
+  },
+
+  // Database Backup & Restore
+  async backupDatabase(projectId: string): Promise<string> {
+    return await invoke('backup_database', { projectId })
+  },
+
+  async restoreDatabase(projectId: string, backupName: string): Promise<string> {
+    return await invoke('restore_database', { projectId, backupName })
+  },
+
+  async listBackups(projectId: string): Promise<string[]> {
+    return await invoke('list_backups', { projectId })
+  },
+
+  async deleteBackup(projectId: string, backupName: string): Promise<string> {
+    return await invoke('delete_backup', { projectId, backupName })
+  },
+
+  async getBackupsWithInfo(projectId: string): Promise<BackupInfo[]> {
+    return await invoke('get_backups_with_info', { projectId })
+  },
+
+  // Terminal / Exec
+  async execContainerCommand(projectId: string, service: string, command: string): Promise<string> {
+    return await invoke('exec_container_command', { projectId, service, command })
+  },
+
+  async runTinkerCommand(projectId: string, code: string): Promise<string> {
+    return await invoke('run_tinker_command', { projectId, code })
+  },
+
+  async runComposerCommand(projectId: string, command: string): Promise<string> {
+    return await invoke('run_composer_command', { projectId, command })
+  },
+
+  async runNpmCommand(projectId: string, command: string): Promise<string> {
+    return await invoke('run_npm_command', { projectId, command })
   },
 
   // Supervisor

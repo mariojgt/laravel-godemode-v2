@@ -76,6 +76,17 @@ fn main() {
             // Project cloning commands
             commands::clone_project,
             commands::import_project,
+            // Database backup commands
+            commands::backup_database,
+            commands::restore_database,
+            commands::list_backups,
+            commands::delete_backup,
+            commands::get_backups_with_info,
+            // Terminal / Exec commands
+            commands::exec_container_command,
+            commands::run_tinker_command,
+            commands::run_composer_command,
+            commands::run_npm_command,
             // Settings commands
             commands::get_settings,
             commands::save_settings,
